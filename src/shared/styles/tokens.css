@@ -1,0 +1,107 @@
+:root {
+  color-scheme: dark;
+
+  /* type families — next/font sets --font-bricolage / --font-instrument on <html> */
+  --font-display: var(--font-bricolage), "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --font-sans: var(--font-instrument), "Instrument Sans", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --font-body: var(--font-sans);
+  /* AuthSheet alias */
+  --font-instrument-sans: var(--font-instrument);
+
+  /* colour */
+  --surface-canvas: #061412;
+  --surface-raised: #141a19;
+  --surface-sunken: #1d2422;
+  --surface-overlay: #222927;
+  --surface-inverse: #f4f0e3;
+  --ink-primary: #eaebe7;
+  --ink-muted: #9ba3a0;
+  --ink-subtle: #808886;
+  --ink-inverse: #061412;
+  --line-subtle: #283130;
+  --line-strong: #636d6b;
+  --brand-primary: #f4f0e3;
+  --brand-primary-hover: #fffdf4;
+  --brand-primary-press: #ded9c9;
+  --brand-primary-on: #061412;
+  --brand-tint: #22211d;
+  --accent-pink: #ff5c9b;
+  --accent-pink-tint: #3a1425;
+  --state-positive: #57d3a0;
+  --state-positive-tint: #0f2a20;
+  --state-notice: #f0b74a;
+  --state-notice-tint: #2e230c;
+  --state-critical: #ff7a63;
+  --state-critical-tint: #33150f;
+  --focus-ring: #f4f0e3;
+
+  /* spacing, 4px base — design system values */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* radius */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+
+  /* size */
+  --size-control-lg: 52px;
+  --size-control-md: 44px;
+  --size-control-sm: 36px;
+  --size-field: 48px;
+  --size-tap-min: 44px;
+  --size-tap: 44px;
+  --size-icon-sm: 18px;
+  --size-icon-md: 24px;
+  --size-avatar-sm: 32px;
+  --size-avatar-md: 44px;
+  --size-avatar-lg: 64px;
+  --size-bar-app: 56px;
+  --size-bar-tab: 64px;
+  --size-content-max: 480px;
+  --content-max: 480px;
+
+  /* border */
+  --border-hairline: 1px;
+  --border-focus: 2px;
+  --focus-offset: 2px;
+
+  /* motion */
+  --duration-instant: 80ms;
+  --duration-enter: 180ms;
+  --duration-exit: 120ms;
+  --ease-enter: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: linear;
+  --motion-enter: var(--duration-enter) var(--ease-enter);
+  --motion-leave: var(--duration-exit) var(--ease-exit);
+
+  /* layers */
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-scrim: 40;
+  --z-app-bar: 40;
+  --z-tab-bar: 45;
+  --z-booking-bar: 50;
+  --z-sheet: 50;
+  --z-toast: 60;
+
+  /* opacity */
+  --opacity-disabled: 0.4;
+  --opacity-scrim: 0.6;
+  --opacity-photo-scrim: 0.7;
+
+  /* shadow */
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.5), 0 6px 16px rgba(0, 0, 0, 0.55);
+  --shadow-overlay: 0 8px 24px rgba(0, 0, 0, 0.6), 0 24px 48px rgba(0, 0, 0, 0.7);
+  --photo-lift: inset 0 -28px 36px -16px rgba(6, 20, 18, 0.55);
+
+  --control-scrim: rgba(6, 20, 18, 0.55);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}

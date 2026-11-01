@@ -1,0 +1,157 @@
+.card {
+  border: var(--border-hairline) solid var(--line-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  overflow: hidden;
+  min-width: 0;
+}
+
+.stat {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-4);
+}
+
+.icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.icon_bone {
+  background: var(--brand-tint);
+  color: var(--brand-primary);
+}
+
+.icon_positive {
+  background: var(--state-positive-tint);
+  color: var(--state-positive);
+}
+
+.icon_notice {
+  background: var(--state-notice-tint);
+  color: var(--state-notice);
+}
+
+.icon_critical {
+  background: var(--state-critical-tint);
+  color: var(--state-critical);
+}
+
+.icon_muted {
+  background: var(--surface-sunken);
+  color: var(--ink-muted);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.label {
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+.valueRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.value {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-primary);
+}
+
+.change {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.up {
+  color: var(--state-positive);
+}
+
+.down {
+  color: var(--state-critical);
+}
+
+.flat {
+  color: var(--ink-subtle);
+}
+
+.subtext {
+  margin: 0;
+  color: var(--ink-subtle);
+}
+
+.spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 36px;
+  align-self: end;
+}
+
+.bar {
+  width: 4px;
+  border-radius: 2px;
+  background: var(--brand-primary);
+  opacity: 0.75;
+}
+
+.progressWrap {
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.progressTrack {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+}
+
+.fill_bone {
+  background: var(--brand-primary);
+}
+
+.fill_positive {
+  background: var(--state-positive);
+}
+
+.fill_notice {
+  background: var(--state-notice);
+}
+
+.fill_critical {
+  background: var(--state-critical);
+}
+
+.fill_muted {
+  background: var(--ink-subtle);
+}

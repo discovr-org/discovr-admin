@@ -1,0 +1,32 @@
+.track {
+  display: flex;
+  width: 100%;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--surface-sunken);
+}
+
+.seg {
+  height: 100%;
+}
+
+.bone {
+  background: var(--brand-primary);
+}
+
+.positive {
+  background: var(--state-positive);
+}
+
+.notice {
+  background: var(--state-notice);
+}
+
+.critical {
+  background: var(--state-critical);
+}
+
+.muted {
+  background: var(--line-strong);
+}
