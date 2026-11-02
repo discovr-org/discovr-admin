@@ -201,6 +201,14 @@ async function requestFormData<T>(path: string, form: FormData): Promise<T> {
   return (await res.json()) as T;
 }
 
+/** Clear the API's cached home feed and cache a fresh copy. */
+export function refreshFeedCacheAdmin() {
+  return requestJson<{ ok: true; sections: number; items: number }>(
+    "/v1/admin/cache/feed/refresh",
+    { method: "POST" },
+  );
+}
+
 export function fetchExperiences() {
   return requestJson<{ experiences: CatalogExperienceSummary[] }>(
     "/v1/catalog/experiences",

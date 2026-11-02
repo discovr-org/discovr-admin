@@ -14,6 +14,7 @@ import { ListIcon, StarIcon, UsersIcon } from "@/shared/components/icons";
 import {
   fetchExperiences,
   fetchHosts,
+  refreshFeedCacheAdmin,
   type CatalogExperienceSummary,
 } from "@/shared/utils/catalogApi";
 import { formatInr } from "@/shared/utils/formatInr";
@@ -37,6 +38,27 @@ export function OverviewDashboard() {
   );
   const [hostCount, setHostCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshNote, setRefreshNote] = useState<string | null>(null);
+
+  const onRefreshFeed = async () => {
+    setRefreshing(true);
+    setRefreshNote(null);
+    try {
+      const res = await refreshFeedCacheAdmin();
+      setRefreshNote(
+        `Home feed refreshed: ${res.sections} sections, ${res.items} cards.`,
+      );
+    } catch (err: unknown) {
+      setRefreshNote(
+        err instanceof Error
+          ? `Couldn't refresh the feed. ${err.message}`
+          : "Couldn't refresh the feed.",
+      );
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -128,11 +150,25 @@ export function OverviewDashboard() {
         pretitle="Overview"
         title="Dashboard"
         actions={
-          <Button href="/listings" variant="secondary">
-            All listings
-          </Button>
+          <>
+            <Button
+              variant="secondary"
+              onClick={onRefreshFeed}
+              disabled={refreshing}
+            >
+              {refreshing ? "Refreshing…" : "Refresh home feed"}
+            </Button>
+            <Button href="/listings" variant="secondary">
+              All listings
+            </Button>
+          </>
         }
       />
+      {refreshNote ? (
+        <p className={`t-body-sm ${styles.meta}`} role="status">
+          {refreshNote}
+        </p>
+      ) : null}
 
       <section className={styles.stats3} aria-label="Snapshot">
         <StatCard
