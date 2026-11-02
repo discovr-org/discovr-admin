@@ -1,6 +1,4 @@
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
-  "http://127.0.0.1:8080";
+import { apiBaseUrl } from "@/shared/utils/apiBase";
 
 export type CatalogExperienceSummary = {
   id: string;
@@ -167,7 +165,7 @@ async function requestJson<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${apiBaseUrl()}${path}`, {
     ...init,
     headers: {
       Accept: "application/json",
@@ -182,7 +180,7 @@ async function requestJson<T>(
 }
 
 async function requestFormData<T>(path: string, form: FormData): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${apiBaseUrl()}${path}`, {
     method: "POST",
     body: form,
     headers: { Accept: "application/json" },
