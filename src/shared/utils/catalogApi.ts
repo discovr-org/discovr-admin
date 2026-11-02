@@ -13,6 +13,8 @@ export type CatalogExperienceSummary = {
   placeNeighborhood: string;
 };
 
+export type HostCredit = "hosted" | "run" | "owned";
+
 export type CatalogHostSummary = {
   id: string;
   businessName: string;
@@ -22,6 +24,7 @@ export type CatalogHostSummary = {
   active: boolean;
   avatarUrl?: string;
   avatarAlt?: string;
+  credit: HostCredit;
 };
 
 export type ContentLink = { label: string; url: string };
@@ -31,6 +34,8 @@ export type ExperienceContent = {
   locationLabel?: string;
   priceNarrative?: string;
   priceUnit?: string;
+  taxes?: "extra" | "inclusive";
+  format?: "trip" | "venue";
   meetingPoint?: string;
   droppingPoint?: string;
   durationLabel?: string;
@@ -68,6 +73,8 @@ export type ListingPolicy = {
   summary: string;
   booking: string[];
   cancellation: string[];
+  /** Guest note under policy. Defaults on when omitted. */
+  showFinalTermsNote?: boolean;
 };
 
 export type CatalogExperienceAdmin = {
@@ -137,6 +144,9 @@ export type HostAdminPatch = Partial<{
   personName: string;
   phone: string;
   active: boolean;
+  avatarUrl: string | null;
+  avatarAlt: string | null;
+  credit: HostCredit;
 }>;
 
 export type HostAdminCreate = {
@@ -144,6 +154,7 @@ export type HostAdminCreate = {
   personName: string;
   phone: string;
   active?: boolean;
+  credit?: HostCredit;
 };
 
 type ApiErrorBody = {

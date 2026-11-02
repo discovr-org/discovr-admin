@@ -49,6 +49,8 @@ type FormState = {
   aka: string;
   priceNarrative: string;
   priceUnit: string;
+  taxes: "extra" | "inclusive";
+  format: "trip" | "venue";
   meetingPoint: string;
   phones: string;
   additionalInfo: string;
@@ -59,6 +61,7 @@ type FormState = {
   policySummary: string;
   bookingNotes: string[];
   cancellationNotes: string[];
+  showFinalTermsNote: boolean;
   faqs: FaqRow[];
   mapsLabel: string;
   mapsUrl: string;
@@ -115,6 +118,8 @@ function toForm(row: CatalogExperienceAdmin): FormState {
     aka: c.aka ?? "",
     priceNarrative: c.priceNarrative ?? "",
     priceUnit: c.priceUnit ?? "",
+    taxes: c.taxes === "extra" ? "extra" : "inclusive",
+    format: c.format === "venue" ? "venue" : "trip",
     meetingPoint: c.meetingPoint ?? "",
     phones: (c.phones ?? []).join(", "),
     additionalInfo: c.additionalInfo ?? "",
@@ -125,6 +130,7 @@ function toForm(row: CatalogExperienceAdmin): FormState {
     policySummary: p?.summary ?? "",
     bookingNotes: [...(p?.booking ?? [])],
     cancellationNotes: [...(p?.cancellation ?? [])],
+    showFinalTermsNote: p?.showFinalTermsNote !== false,
     faqs: (c.faqs ?? []).map((f) => ({ q: f.q, a: f.a })),
     mapsLabel: maps.label,
     mapsUrl: maps.url,
@@ -157,6 +163,8 @@ function buildContent(form: FormState): ExperienceContent {
     aka: form.aka.trim() || undefined,
     priceNarrative: form.priceNarrative.trim() || undefined,
     priceUnit: form.priceUnit.trim() || undefined,
+    taxes: form.taxes,
+    format: form.format,
     meetingPoint: form.meetingPoint.trim() || undefined,
     durationLabel: form.durationLabel.trim() || undefined,
     additionalInfo: form.additionalInfo.trim() || undefined,
@@ -347,6 +355,7 @@ export function EditListingScreen({ id }: Props) {
           cancellation: form.cancellationNotes
             .map((s) => s.trim())
             .filter(Boolean),
+          showFinalTermsNote: form.showFinalTermsNote,
         },
         content: buildContent(form),
       });
@@ -462,6 +471,25 @@ export function EditListingScreen({ id }: Props) {
                 <option value="archived">Inactive</option>
               </select>
             </div>
+            <div className={styles.selectField}>
+              <label className={styles.textareaLabel} htmlFor="listing-format">
+                Format
+              </label>
+              <select
+                id="listing-format"
+                className={styles.select}
+                value={form.format}
+                onChange={(e) =>
+                  patchField(
+                    "format",
+                    e.target.value === "venue" ? "venue" : "trip",
+                  )
+                }
+              >
+                <option value="trip">Trip (times + people)</option>
+                <option value="venue">Venue / bar (no trip times)</option>
+              </select>
+            </div>
             <Input
               label="Price from (INR)"
               inputMode="numeric"
@@ -561,6 +589,25 @@ export function EditListingScreen({ id }: Props) {
                 value={form.priceUnit}
                 onChange={(e) => patchField("priceUnit", e.target.value)}
               />
+            </div>
+            <div className={styles.selectField}>
+              <label className={styles.selectLabel} htmlFor="price-taxes">
+                Taxes
+              </label>
+              <select
+                id="price-taxes"
+                className={styles.select}
+                value={form.taxes}
+                onChange={(e) =>
+                  patchField(
+                    "taxes",
+                    e.target.value === "extra" ? "extra" : "inclusive",
+                  )
+                }
+              >
+                <option value="inclusive">Inclusive of taxes</option>
+                <option value="extra">+ taxes</option>
+              </select>
             </div>
             <div className={styles.full}>
               <Input
@@ -776,6 +823,21 @@ export function EditListingScreen({ id }: Props) {
             emptyHint="No cancellation lines yet. Hit Add note."
             addLabel="Add note"
           />
+
+          <label className={styles.checkRow}>
+            <input
+              type="checkbox"
+              checked={form.showFinalTermsNote}
+              onChange={(e) =>
+                patchField("showFinalTermsNote", e.target.checked)
+              }
+            />
+            <span>
+              Show &quot;Check the final terms on{" "}
+              {hostLabel || "this place"} before paying.&quot; under the
+              policy
+            </span>
+          </label>
 
           <div className={styles.grid2}>
             <div className={`${styles.textareaField} ${styles.full}`}>

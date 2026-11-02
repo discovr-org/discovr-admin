@@ -13,6 +13,7 @@ import {
   patchHostAdmin,
   uploadHostAvatarAdmin,
   type CatalogHostSummary,
+  type HostCredit,
 } from "@/shared/utils/catalogApi";
 import styles from "../styles/HostsScreen.module.css";
 
@@ -23,6 +24,7 @@ type EditForm = {
   active: boolean;
   avatarUrl?: string;
   avatarAlt?: string;
+  credit: HostCredit;
 };
 
 type ActiveFilter = "all" | "active" | "inactive";
@@ -81,6 +83,7 @@ export function HostsScreen() {
       active: row.active,
       avatarUrl: row.avatarUrl,
       avatarAlt: row.avatarAlt,
+      credit: row.credit ?? "hosted",
     });
     setActionError(null);
     setMessage(null);
@@ -143,6 +146,7 @@ export function HostsScreen() {
         personName: editForm.personName.trim(),
         phone: editForm.phone.trim(),
         active: editForm.active,
+        credit: editForm.credit,
       });
       setMessage("Host saved.");
       setEditingId(null);
@@ -297,6 +301,30 @@ export function HostsScreen() {
               }
               required
             />
+            <div className={styles.selectField}>
+              <label className={styles.selectLabel} htmlFor="edit-host-credit">
+                Credit line
+              </label>
+              <select
+                id="edit-host-credit"
+                className={styles.select}
+                value={editForm.credit}
+                onChange={(e) =>
+                  setEditForm((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          credit: e.target.value as HostCredit,
+                        }
+                      : prev,
+                  )
+                }
+              >
+                <option value="hosted">Hosted by</option>
+                <option value="run">Run by</option>
+                <option value="owned">Owned by</option>
+              </select>
+            </div>
             <div className={styles.selectField}>
               <label className={styles.selectLabel} htmlFor="edit-host-active">
                 Status

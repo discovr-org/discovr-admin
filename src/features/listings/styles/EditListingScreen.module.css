@@ -299,6 +299,25 @@
   text-decoration: none;
 }
 
+.checkRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--ink-primary);
+  cursor: pointer;
+}
+
+.checkRow input {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--brand-primary, #eaebe7);
+}
+
 @media (max-width: 720px) {
   .grid2 {
     grid-template-columns: 1fr;

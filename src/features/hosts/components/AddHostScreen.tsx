@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
-import { createHostAdmin } from "@/shared/utils/catalogApi";
+import { createHostAdmin, type HostCredit } from "@/shared/utils/catalogApi";
 import styles from "../styles/HostsScreen.module.css";
 
 export function AddHostScreen() {
@@ -13,6 +13,7 @@ export function AddHostScreen() {
   const [personName, setPersonName] = useState("");
   const [phone, setPhone] = useState("");
   const [active, setActive] = useState(true);
+  const [credit, setCredit] = useState<HostCredit>("hosted");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +31,7 @@ export function AddHostScreen() {
         personName: personName.trim(),
         phone: phone.trim(),
         active,
+        credit,
       });
       router.push("/hosts");
     } catch (err: unknown) {
@@ -59,6 +61,21 @@ export function AddHostScreen() {
           onChange={(e) => setPhone(e.target.value)}
           required
         />
+        <div className={styles.selectField}>
+          <label className={styles.selectLabel} htmlFor="host-credit">
+            Credit line
+          </label>
+          <select
+            id="host-credit"
+            className={styles.select}
+            value={credit}
+            onChange={(e) => setCredit(e.target.value as HostCredit)}
+          >
+            <option value="hosted">Hosted by</option>
+            <option value="run">Run by</option>
+            <option value="owned">Owned by</option>
+          </select>
+        </div>
         <div className={styles.selectField}>
           <label className={styles.selectLabel} htmlFor="host-active">
             Status
