@@ -51,11 +51,19 @@ type FormState = {
   priceUnit: string;
   taxes: "extra" | "inclusive";
   format: "trip" | "venue";
+  walkIn: boolean;
   meetingPoint: string;
   phones: string;
   additionalInfo: string;
   termsDetail: string;
-  whatToCarry: string;
+  pitch: string;
+  fitnessLevel: string;
+  instructorRatio: string;
+  healthAdvisory: string;
+  carry: string[];
+  knowBeforeYouGo: string[];
+  /** Keys the form doesn't edit; kept on save so they aren't lost. */
+  baseContent: ExperienceContent;
   included: string[];
   notIncluded: string[];
   policySummary: string;
@@ -84,6 +92,14 @@ function optionalLink(label: string, url: string): ContentLink | undefined {
   if (!trimmedUrl && !label.trim()) return undefined;
   return { label: label.trim() || "Link", url: trimmedUrl };
 }
+
+type LineKey =
+  | "bookingNotes"
+  | "cancellationNotes"
+  | "included"
+  | "notIncluded"
+  | "carry"
+  | "knowBeforeYouGo";
 
 function toForm(row: CatalogExperienceAdmin): FormState {
   const c = row.content ?? {};
@@ -120,11 +136,23 @@ function toForm(row: CatalogExperienceAdmin): FormState {
     priceUnit: c.priceUnit ?? "",
     taxes: c.taxes === "extra" ? "extra" : "inclusive",
     format: c.format === "venue" ? "venue" : "trip",
+    walkIn: c.walkIn === true,
     meetingPoint: c.meetingPoint ?? "",
     phones: (c.phones ?? []).join(", "),
     additionalInfo: c.additionalInfo ?? "",
     termsDetail: c.termsDetail ?? "",
-    whatToCarry: c.whatToCarry ?? "",
+    pitch: c.pitch ?? "",
+    fitnessLevel: c.fitnessLevel ?? c.difficulty ?? "",
+    instructorRatio: c.instructorRatio ?? "",
+    healthAdvisory: c.healthAdvisory ?? "",
+    carry: c.carry?.length
+      ? [...c.carry]
+      : (c.whatToCarry ?? "")
+          .split(/\n|,/)
+          .map((s) => s.trim())
+          .filter(Boolean),
+    knowBeforeYouGo: [...(c.knowBeforeYouGo ?? [])],
+    baseContent: c,
     included: [...(c.included ?? [])],
     notIncluded: [...(c.notIncluded ?? [])],
     policySummary: p?.summary ?? "",
@@ -160,16 +188,24 @@ function buildContent(form: FormState): ExperienceContent {
   const tags = form.tags.map((t) => t.trim()).filter(Boolean);
 
   return {
+    ...form.baseContent,
     aka: form.aka.trim() || undefined,
     priceNarrative: form.priceNarrative.trim() || undefined,
     priceUnit: form.priceUnit.trim() || undefined,
     taxes: form.taxes,
     format: form.format,
+    walkIn: form.format === "venue" && form.walkIn ? true : undefined,
     meetingPoint: form.meetingPoint.trim() || undefined,
     durationLabel: form.durationLabel.trim() || undefined,
     additionalInfo: form.additionalInfo.trim() || undefined,
     termsDetail: form.termsDetail.trim() || undefined,
-    whatToCarry: form.whatToCarry.trim() || undefined,
+    whatToCarry: undefined,
+    pitch: form.pitch.trim() || undefined,
+    fitnessLevel: form.fitnessLevel.trim() || undefined,
+    instructorRatio: form.instructorRatio.trim() || undefined,
+    healthAdvisory: form.healthAdvisory.trim() || undefined,
+    carry: form.carry.map((s) => s.trim()).filter(Boolean),
+    knowBeforeYouGo: form.knowBeforeYouGo.map((s) => s.trim()).filter(Boolean),
     included: form.included.map((s) => s.trim()).filter(Boolean),
     notIncluded: form.notIncluded.map((s) => s.trim()).filter(Boolean),
     phones: form.phones
@@ -254,14 +290,14 @@ export function EditListingScreen({ id }: Props) {
   }
 
   function addLine(
-    key: "bookingNotes" | "cancellationNotes" | "included" | "notIncluded",
+    key: LineKey,
   ) {
     setForm((prev) => (prev ? { ...prev, [key]: [...prev[key], ""] } : prev));
     touch();
   }
 
   function updateLine(
-    key: "bookingNotes" | "cancellationNotes" | "included" | "notIncluded",
+    key: LineKey,
     index: number,
     value: string,
   ) {
@@ -274,7 +310,7 @@ export function EditListingScreen({ id }: Props) {
   }
 
   function removeLine(
-    key: "bookingNotes" | "cancellationNotes" | "included" | "notIncluded",
+    key: LineKey,
     index: number,
   ) {
     setForm((prev) =>
@@ -490,6 +526,19 @@ export function EditListingScreen({ id }: Props) {
                 <option value="venue">Venue / bar (no trip times)</option>
               </select>
             </div>
+            {form.format === "venue" ? (
+              <label className={styles.checkRow}>
+                <input
+                  type="checkbox"
+                  checked={form.walkIn}
+                  onChange={(e) => patchField("walkIn", e.target.checked)}
+                />
+                <span>
+                  Walk-ins welcome (bottom bar says &quot;No booking needed,
+                  just walk in&quot;)
+                </span>
+              </label>
+            ) : null}
             <Input
               label="Price from (INR)"
               inputMode="numeric"
@@ -865,19 +914,52 @@ export function EditListingScreen({ id }: Props) {
               />
             </div>
             <div className={`${styles.textareaField} ${styles.full}`}>
-              <label className={styles.textareaLabel} htmlFor="what-to-carry">
-                What to carry
+              <label className={styles.textareaLabel} htmlFor="health-advisory">
+                Health advisory
               </label>
               <textarea
-                id="what-to-carry"
+                id="health-advisory"
                 className={styles.textarea}
-                value={form.whatToCarry}
-                onChange={(e) => patchField("whatToCarry", e.target.value)}
+                value={form.healthAdvisory}
+                onChange={(e) => patchField("healthAdvisory", e.target.value)}
                 rows={2}
               />
             </div>
+            <Input
+              label="Short pitch (italic, top of About)"
+              value={form.pitch}
+              onChange={(e) => patchField("pitch", e.target.value)}
+            />
+            <Input
+              label="Fitness level"
+              value={form.fitnessLevel}
+              onChange={(e) => patchField("fitnessLevel", e.target.value)}
+            />
+            <Input
+              label="Student to instructor ratio"
+              value={form.instructorRatio}
+              onChange={(e) => patchField("instructorRatio", e.target.value)}
+            />
           </div>
 
+          <LineList
+            title="Things to get with you"
+            lines={form.carry}
+            onAdd={() => addLine("carry")}
+            onChange={(i, v) => updateLine("carry", i, v)}
+            onRemove={(i) => removeLine("carry", i)}
+            emptyHint="Nothing listed. Hit Add item."
+            addLabel="Add item"
+          />
+          <LineList
+            title="Know before you go"
+            lines={form.knowBeforeYouGo}
+            onAdd={() => addLine("knowBeforeYouGo")}
+            onChange={(i, v) => updateLine("knowBeforeYouGo", i, v)}
+            onRemove={(i) => removeLine("knowBeforeYouGo", i)}
+            emptyHint="Empty: the guest page uses the booking and cancellation notes."
+            addLabel="Add tip"
+          />
           <LineList
             title="What's included"
             lines={form.included}

@@ -47,7 +47,7 @@ export function OverviewDashboard() {
     try {
       const res = await refreshFeedCacheAdmin();
       setRefreshNote(
-        `Home feed refreshed: ${res.sections} sections, ${res.items} cards.`,
+        `Home feed refreshed: ${res.cards} listings.`,
       );
     } catch (err: unknown) {
       setRefreshNote(

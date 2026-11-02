@@ -42,6 +42,13 @@ export type ExperienceContent = {
   additionalInfo?: string;
   termsDetail?: string;
   whatToCarry?: string;
+  pitch?: string;
+  walkIn?: boolean;
+  fitnessLevel?: string;
+  instructorRatio?: string;
+  healthAdvisory?: string;
+  carry?: string[];
+  knowBeforeYouGo?: string[];
   included?: string[];
   notIncluded?: string[];
   phones?: string[];
@@ -51,6 +58,7 @@ export type ExperienceContent = {
   difficulty?: string;
   tagsOnDisplay?: string[];
   faqs?: Array<{ q: string; a: string }>;
+  [key: string]: unknown;
   links?: {
     maps?: ContentLink;
     book?: ContentLink;
@@ -201,10 +209,10 @@ async function requestFormData<T>(path: string, form: FormData): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** Clear the API's cached home feed and cache a fresh copy. */
+/** Clear the API's cached listing cards and cache a fresh copy. */
 export function refreshFeedCacheAdmin() {
-  return requestJson<{ ok: true; sections: number; items: number }>(
-    "/v1/admin/cache/feed/refresh",
+  return requestJson<{ ok: true; cards: number }>(
+    "/v1/admin/cache/cards/refresh",
     { method: "POST" },
   );
 }
