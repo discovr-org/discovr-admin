@@ -104,11 +104,17 @@ export type CatalogExperienceAdmin = {
   hostBusinessName: string;
   coverPhotoUrl?: string;
   coverPhotoAlt?: string;
+  photos: ListingPhoto[];
+  menuPages: ListingMenuPage[];
   tags: string[];
   schedule: ListingSchedule;
   policy: ListingPolicy | null;
   content: ExperienceContent;
 };
+
+export type ListingPhoto = { id: string; src: string; alt: string; isCover: boolean };
+
+export type ListingMenuPage = { id: string; src: string; label: string; alt: string };
 
 export type ExperienceAdminPatch = Partial<{
   title: string;
@@ -275,27 +281,85 @@ export function deleteHostAdmin(id: string) {
   );
 }
 
-export function uploadExperienceCoverAdmin(
+/** Text fields go before the file so Fastify multipart attaches them on `file.fields`. */
+function imageForm(file: File, fields: Record<string, string | undefined> = {}) {
+  const form = new FormData();
+  for (const [name, value] of Object.entries(fields)) {
+    if (value?.trim()) form.append(name, value.trim());
+  }
+  form.append("file", file);
+  return form;
+}
+
+function experiencePath(id: string, rest: string) {
+  return `/v1/admin/experiences/${encodeURIComponent(id)}/${rest}`;
+}
+
+export function uploadExperiencePhotoAdmin(
   id: string,
   file: File,
-  alt?: string,
+  options: { alt?: string; cover?: boolean } = {},
 ) {
-  const form = new FormData();
-  // alt before file so Fastify multipart attaches it on file.fields
-  if (alt?.trim()) form.append("alt", alt.trim());
-  form.append("file", file);
   return requestFormData<CatalogExperienceAdmin>(
-    `/v1/admin/experiences/${encodeURIComponent(id)}/cover`,
-    form,
+    experiencePath(id, "photos"),
+    imageForm(file, { alt: options.alt, cover: options.cover ? "true" : undefined }),
   );
 }
 
+export function saveExperiencePhotosAdmin(
+  id: string,
+  photos: Array<{ id: string; alt: string }>,
+  coverId: string | null,
+) {
+  return requestJson<CatalogExperienceAdmin>(experiencePath(id, "photos"), {
+    method: "PUT",
+    body: JSON.stringify({ photos, coverId }),
+  });
+}
+
+export function deleteExperiencePhotoAdmin(id: string, photoId: string) {
+  return requestJson<CatalogExperienceAdmin>(
+    experiencePath(id, `photos/${encodeURIComponent(photoId)}`),
+    { method: "DELETE" },
+  );
+}
+
+export function uploadMenuPageAdmin(
+  id: string,
+  file: File,
+  options: { label?: string; alt?: string } = {},
+) {
+  return requestFormData<CatalogExperienceAdmin>(
+    experiencePath(id, "menu-pages"),
+    imageForm(file, options),
+  );
+}
+
+export function saveMenuPagesAdmin(
+  id: string,
+  pages: Array<{ id: string; label: string; alt: string }>,
+) {
+  return requestJson<CatalogExperienceAdmin>(experiencePath(id, "menu-pages"), {
+    method: "PUT",
+    body: JSON.stringify({ pages }),
+  });
+}
+
+export function deleteMenuPageAdmin(id: string, pageId: string) {
+  return requestJson<CatalogExperienceAdmin>(
+    experiencePath(id, `menu-pages/${encodeURIComponent(pageId)}`),
+    { method: "DELETE" },
+  );
+}
+
+/** Upload a story image. Save the returned URL into `content.blocks`. */
+export function uploadContentImageAdmin(file: File) {
+  return requestFormData<{ url: string }>("/v1/admin/images", imageForm(file));
+}
+
 export function uploadHostAvatarAdmin(id: string, file: File, alt?: string) {
-  const form = new FormData();
-  if (alt?.trim()) form.append("alt", alt.trim());
-  form.append("file", file);
   return requestFormData<CatalogHostSummary>(
     `/v1/admin/hosts/${encodeURIComponent(id)}/avatar`,
-    form,
+    imageForm(file, { alt }),
   );
 }

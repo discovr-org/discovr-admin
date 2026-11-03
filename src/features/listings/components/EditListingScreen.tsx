@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/shared/components/Button";
 import { EmptyState } from "@/shared/components/EmptyState";
-import { ImageUploadField } from "@/shared/components/ImageUploadField";
 import { Input } from "@/shared/components/Input";
 import { PlaceMap } from "@/shared/components/PlaceMap";
 import { ListIcon } from "@/shared/components/icons";
@@ -13,13 +12,14 @@ import {
   deleteExperienceAdmin,
   fetchExperienceAdmin,
   patchExperienceAdmin,
-  uploadExperienceCoverAdmin,
   type CatalogExperienceAdmin,
   type ContentLink,
   type ExperienceContent,
 } from "@/shared/utils/catalogApi";
 import { useToast } from "@/shared/components/Toast";
 import styles from "../styles/EditListingScreen.module.css";
+import { ListingPhotos } from "./ListingPhotos";
+import { StoryPhotos } from "./StoryPhotos";
 
 type Props = { id: string };
 
@@ -221,13 +221,20 @@ function buildContent(form: FormState): ExperienceContent {
   };
 }
 
+/** Older API builds omit these lists. */
+function listingMedia(row: CatalogExperienceAdmin) {
+  return { photos: row.photos ?? [], menuPages: row.menuPages ?? [] };
+}
+
 export function EditListingScreen({ id }: Props) {
   const toast = useToast();
   const router = useRouter();
   const [form, setForm] = useState<FormState | null>(null);
   const [hostLabel, setHostLabel] = useState("");
-  const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | undefined>();
-  const [coverPhotoAlt, setCoverPhotoAlt] = useState<string | undefined>();
+  const [media, setMedia] = useState<Pick<CatalogExperienceAdmin, "photos" | "menuPages">>({
+    photos: [],
+    menuPages: [],
+  });
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -240,8 +247,7 @@ export function EditListingScreen({ id }: Props) {
         if (cancelled) return;
         setForm(toForm(row));
         setHostLabel(row.hostBusinessName);
-        setCoverPhotoUrl(row.coverPhotoUrl);
-        setCoverPhotoAlt(row.coverPhotoAlt);
+        setMedia(listingMedia(row));
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -420,17 +426,6 @@ export function EditListingScreen({ id }: Props) {
     }
   }
 
-  async function onCoverUpload(file: File) {
-    const saved = await uploadExperienceCoverAdmin(
-      id,
-      file,
-      form?.title.trim() || coverPhotoAlt,
-    );
-    setCoverPhotoUrl(saved.coverPhotoUrl);
-    setCoverPhotoAlt(saved.coverPhotoAlt);
-    toast.success("Cover uploaded.");
-  }
-
   if (loadError) {
     return (
       <EmptyState
@@ -458,16 +453,19 @@ export function EditListingScreen({ id }: Props) {
         <Link href="/listings">Back to listings</Link>
       </p>
       <form className={styles.panel} onSubmit={onSave}>
-        <div className={styles.section}>
-          <h2 className={`t-title-sm ${styles.sectionTitle}`}>Cover</h2>
-          <ImageUploadField
-            label="Cover photo"
-            previewUrl={coverPhotoUrl}
-            previewAlt={coverPhotoAlt || form.title}
-            disabled={saving || deleting}
-            onUpload={onCoverUpload}
-          />
-        </div>
+        <ListingPhotos
+          experienceId={id}
+          title={form.title.trim()}
+          photos={media.photos}
+          menuPages={media.menuPages}
+          onSaved={(row) => setMedia(listingMedia(row))}
+        />
+        <StoryPhotos
+          blocks={form.baseContent.blocks}
+          onChange={(blocks) =>
+            patchField("baseContent", { ...form.baseContent, blocks })
+          }
+        />
         <div className={styles.section}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Basics</h2>
           <div className={styles.grid2}>
