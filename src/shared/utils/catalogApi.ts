@@ -62,6 +62,8 @@ export type ExperienceContent = {
   [key: string]: unknown;
   /** "link" = the book button opens `links.book`; otherwise it calls the host. */
   bookVia?: "call" | "link";
+  /** true = the app skips photo blocks in the story. */
+  hideStoryPhotos?: boolean;
   links?: {
     maps?: ContentLink;
     book?: ContentLink;

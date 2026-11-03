@@ -453,6 +453,13 @@ export function EditListingScreen({ id }: Props) {
           onChange={(blocks) =>
             patchField("baseContent", { ...form.baseContent, blocks })
           }
+          hidden={form.baseContent.hideStoryPhotos === true}
+          onHiddenChange={(hideStoryPhotos) =>
+            patchField("baseContent", {
+              ...form.baseContent,
+              hideStoryPhotos: hideStoryPhotos || undefined,
+            })
+          }
         />
         <div className={styles.section}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Basics</h2>
