@@ -27,7 +27,8 @@ export type CatalogHostSummary = {
   credit: HostCredit;
 };
 
-export type ContentLink = { label: string; url: string };
+/** Guest app shows its own icon per link; `label` is legacy and unused. */
+export type ContentLink = { url: string; label?: string };
 
 export type ExperienceContent = {
   aka?: string;
@@ -59,6 +60,8 @@ export type ExperienceContent = {
   tagsOnDisplay?: string[];
   faqs?: Array<{ q: string; a: string }>;
   [key: string]: unknown;
+  /** "link" = the book button opens `links.book`; otherwise it calls the host. */
+  bookVia?: "call" | "link";
   links?: {
     maps?: ContentLink;
     book?: ContentLink;

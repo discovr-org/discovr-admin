@@ -308,6 +308,17 @@
   text-decoration: none;
 }
 
+.choice {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.choice .checkRow {
+  margin: var(--space-3) 0;
+}
+
 .checkRow {
   display: flex;
   align-items: flex-start;

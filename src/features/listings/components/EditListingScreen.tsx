@@ -24,6 +24,7 @@ import { StoryPhotos } from "./StoryPhotos";
 type Props = { id: string };
 
 type LinkKey = keyof NonNullable<ExperienceContent["links"]>;
+type BookVia = NonNullable<ExperienceContent["bookVia"]>;
 type FaqRow = { q: string; a: string };
 
 type FormState = {
@@ -72,26 +73,17 @@ type FormState = {
   cancellationNotes: string[];
   showFinalTermsNote: boolean;
   faqs: FaqRow[];
-  mapsLabel: string;
   mapsUrl: string;
-  menuLabel: string;
   menuUrl: string;
-  bookLabel: string;
+  bookVia: BookVia;
   bookUrl: string;
-  whatsappLabel: string;
   whatsappUrl: string;
-  instagramLabel: string;
   instagramUrl: string;
 };
 
-function linkParts(link: ContentLink | undefined): { label: string; url: string } {
-  return { label: link?.label ?? "", url: link?.url ?? "" };
-}
-
-function optionalLink(label: string, url: string): ContentLink | undefined {
-  const trimmedUrl = url.trim();
-  if (!trimmedUrl && !label.trim()) return undefined;
-  return { label: label.trim() || "Link", url: trimmedUrl };
+function optionalLink(url: string): ContentLink | undefined {
+  const trimmed = url.trim();
+  return trimmed ? { url: trimmed } : undefined;
 }
 
 type LineKey =
@@ -106,11 +98,6 @@ function toForm(row: CatalogExperienceAdmin): FormState {
   const c = row.content ?? {};
   const s = row.schedule ?? {};
   const p = row.policy;
-  const maps = linkParts(c.links?.maps);
-  const menu = linkParts(c.links?.menu);
-  const book = linkParts(c.links?.book);
-  const wa = linkParts(c.links?.whatsapp);
-  const ig = linkParts(c.links?.instagram);
   return {
     title: row.title,
     slug: row.slug,
@@ -161,30 +148,26 @@ function toForm(row: CatalogExperienceAdmin): FormState {
     cancellationNotes: [...(p?.cancellation ?? [])],
     showFinalTermsNote: p?.showFinalTermsNote !== false,
     faqs: (c.faqs ?? []).map((f) => ({ q: f.q, a: f.a })),
-    mapsLabel: maps.label,
-    mapsUrl: maps.url,
-    menuLabel: menu.label,
-    menuUrl: menu.url,
-    bookLabel: book.label,
-    bookUrl: book.url,
-    whatsappLabel: wa.label,
-    whatsappUrl: wa.url,
-    instagramLabel: ig.label,
-    instagramUrl: ig.url,
+    mapsUrl: c.links?.maps?.url ?? "",
+    menuUrl: c.links?.menu?.url ?? "",
+    bookVia: c.bookVia === "link" ? "link" : "call",
+    bookUrl: c.links?.book?.url ?? "",
+    whatsappUrl: c.links?.whatsapp?.url ?? "",
+    instagramUrl: c.links?.instagram?.url ?? "",
   };
 }
 
 function buildContent(form: FormState): ExperienceContent {
   const links: NonNullable<ExperienceContent["links"]> = {};
-  const setLink = (key: LinkKey, label: string, url: string) => {
-    const link = optionalLink(label, url);
+  const setLink = (key: LinkKey, url: string) => {
+    const link = optionalLink(url);
     if (link) links[key] = link;
   };
-  setLink("maps", form.mapsLabel, form.mapsUrl);
-  setLink("menu", form.menuLabel, form.menuUrl);
-  setLink("book", form.bookLabel, form.bookUrl);
-  setLink("whatsapp", form.whatsappLabel, form.whatsappUrl);
-  setLink("instagram", form.instagramLabel, form.instagramUrl);
+  setLink("maps", form.mapsUrl);
+  setLink("menu", form.menuUrl);
+  setLink("book", form.bookUrl);
+  setLink("whatsapp", form.whatsappUrl);
+  setLink("instagram", form.instagramUrl);
 
   const tags = form.tags.map((t) => t.trim()).filter(Boolean);
 
@@ -218,6 +201,7 @@ function buildContent(form: FormState): ExperienceContent {
       .map((f) => ({ q: f.q.trim(), a: f.a.trim() }))
       .filter((f) => f.q || f.a),
     links: Object.keys(links).length ? links : undefined,
+    bookVia: form.bookVia,
   };
 }
 
@@ -355,6 +339,10 @@ export function EditListingScreen({ id }: Props) {
     }
     if (form.status === "published" && !form.verdict.trim()) {
       toast.error("Published listings need a one-line verdict.");
+      return;
+    }
+    if (form.bookVia === "link" && !form.bookUrl.trim()) {
+      toast.error("Add the booking page URL, or switch to Call the host.");
       return;
     }
 
@@ -722,60 +710,73 @@ export function EditListingScreen({ id }: Props) {
         <div className={styles.section}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Links</h2>
           <p className={`t-body-sm ${styles.hint}`}>
-            Paste menu, maps, book, WhatsApp, or Instagram URLs from the sheet.
+            Paste maps, menu, WhatsApp, or Instagram URLs from the sheet.
           </p>
           <div className={styles.grid2}>
             <Input
-              label="Maps label"
-              value={form.mapsLabel}
-              onChange={(e) => patchField("mapsLabel", e.target.value)}
-            />
-            <Input
               label="Maps URL"
+              type="url"
               value={form.mapsUrl}
               onChange={(e) => patchField("mapsUrl", e.target.value)}
             />
             <Input
-              label="Menu label"
-              value={form.menuLabel}
-              onChange={(e) => patchField("menuLabel", e.target.value)}
-            />
-            <Input
               label="Menu URL"
+              type="url"
               value={form.menuUrl}
               onChange={(e) => patchField("menuUrl", e.target.value)}
             />
             <Input
-              label="Book label"
-              value={form.bookLabel}
-              onChange={(e) => patchField("bookLabel", e.target.value)}
-            />
-            <Input
-              label="Book URL"
-              value={form.bookUrl}
-              onChange={(e) => patchField("bookUrl", e.target.value)}
-            />
-            <Input
-              label="WhatsApp label"
-              value={form.whatsappLabel}
-              onChange={(e) => patchField("whatsappLabel", e.target.value)}
-            />
-            <Input
               label="WhatsApp URL"
+              type="url"
               value={form.whatsappUrl}
               onChange={(e) => patchField("whatsappUrl", e.target.value)}
             />
             <Input
-              label="Instagram label"
-              value={form.instagramLabel}
-              onChange={(e) => patchField("instagramLabel", e.target.value)}
-            />
-            <Input
               label="Instagram URL"
+              type="url"
               value={form.instagramUrl}
               onChange={(e) => patchField("instagramUrl", e.target.value)}
             />
           </div>
+        </div>
+
+        <div className={styles.section}>
+          <h2 className={`t-title-sm ${styles.sectionTitle}`}>Booking</h2>
+          <fieldset className={styles.choice}>
+            <legend className={styles.textareaLabel}>How guests book</legend>
+            <label className={styles.checkRow}>
+              <input
+                type="radio"
+                name="book-via"
+                checked={form.bookVia === "call"}
+                onChange={() => patchField("bookVia", "call")}
+              />
+              <span>Call the host</span>
+            </label>
+            <label className={styles.checkRow}>
+              <input
+                type="radio"
+                name="book-via"
+                checked={form.bookVia === "link"}
+                onChange={() => patchField("bookVia", "link")}
+              />
+              <span>Host&apos;s booking page</span>
+            </label>
+          </fieldset>
+          {form.bookVia === "call" ? (
+            <p className={`t-body-sm ${styles.hint}`}>
+              The button calls {hostLabel || "the host"}&apos;s number from Hosts.
+            </p>
+          ) : (
+            <Input
+              label="Booking page URL"
+              type="url"
+              value={form.bookUrl}
+              onChange={(e) => patchField("bookUrl", e.target.value)}
+              hint="The button opens this page."
+              required
+            />
+          )}
         </div>
 
         <div className={styles.section}>
