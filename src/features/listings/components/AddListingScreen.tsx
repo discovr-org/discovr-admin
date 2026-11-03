@@ -9,6 +9,7 @@ import {
   fetchHosts,
   type CatalogHostSummary,
 } from "@/shared/utils/catalogApi";
+import { useToast } from "@/shared/components/Toast";
 import styles from "../styles/EditListingScreen.module.css";
 
 function slugFromTitle(title: string): string {
@@ -21,10 +22,10 @@ function slugFromTitle(title: string): string {
 }
 
 export function AddListingScreen() {
+  const toast = useToast();
   const router = useRouter();
   const [hosts, setHosts] = useState<CatalogHostSummary[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
 
@@ -64,24 +65,23 @@ export function AddListingScreen() {
   async function onSave(e: FormEvent) {
     e.preventDefault();
     if (!title.trim()) {
-      setSaveError("Add a title.");
+      toast.error("Add a title.");
       return;
     }
     if (!hostId) {
-      setSaveError("Pick a host.");
+      toast.error("Pick a host.");
       return;
     }
     if (!placeName.trim() || !placeNeighborhood.trim()) {
-      setSaveError("Place name and neighborhood are required.");
+      toast.error("Place name and neighborhood are required.");
       return;
     }
     if (status === "published" && !verdict.trim()) {
-      setSaveError("Active listings need a one-line verdict.");
+      toast.error("Active listings need a one-line verdict.");
       return;
     }
 
     setSaving(true);
-    setSaveError(null);
     try {
       const created = await createExperienceAdmin({
         title: title.trim(),
@@ -96,9 +96,10 @@ export function AddListingScreen() {
         placeLng: Number(placeLng) || 0,
         priceFromInr: Math.max(0, Math.round(Number(priceFromInr) || 0)),
       });
+      toast.success("Listing created.");
       router.push(`/listings/${created.id}`);
     } catch (err: unknown) {
-      setSaveError(err instanceof Error ? err.message : "Couldn't create.");
+      toast.error(err instanceof Error ? err.message : "Couldn't create.");
       setSaving(false);
     }
   }
@@ -239,11 +240,6 @@ export function AddListingScreen() {
           Cancel
         </Button>
       </div>
-      {saveError ? (
-        <p className={`t-body-sm ${styles.error}`} role="alert">
-          {saveError}
-        </p>
-      ) : null}
     </form>
   );
 }

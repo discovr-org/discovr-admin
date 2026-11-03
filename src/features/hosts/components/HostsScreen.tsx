@@ -15,6 +15,7 @@ import {
   type CatalogHostSummary,
   type HostCredit,
 } from "@/shared/utils/catalogApi";
+import { useToast } from "@/shared/components/Toast";
 import styles from "../styles/HostsScreen.module.css";
 
 type EditForm = {
@@ -30,13 +31,12 @@ type EditForm = {
 type ActiveFilter = "all" | "active" | "inactive";
 
 export function HostsScreen() {
+  const toast = useToast();
   const [rows, setRows] = useState<CatalogHostSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
 
   const load = useCallback(() => {
@@ -85,8 +85,6 @@ export function HostsScreen() {
       avatarAlt: row.avatarAlt,
       credit: row.credit ?? "hosted",
     });
-    setActionError(null);
-    setMessage(null);
   }
 
   async function onAvatarUpload(file: File) {
@@ -118,8 +116,7 @@ export function HostsScreen() {
           )
         : prev,
     );
-    setMessage("Avatar uploaded.");
-    setActionError(null);
+    toast.success("Avatar uploaded.");
   }
 
   function cancelEdit() {
@@ -135,11 +132,10 @@ export function HostsScreen() {
       !editForm.personName.trim() ||
       !editForm.phone.trim()
     ) {
-      setActionError("Business, contact, and phone can't be empty.");
+      toast.error("Business, contact, and phone can't be empty.");
       return;
     }
     setBusyId(editingId);
-    setActionError(null);
     try {
       await patchHostAdmin(editingId, {
         businessName: editForm.businessName.trim(),
@@ -148,12 +144,12 @@ export function HostsScreen() {
         active: editForm.active,
         credit: editForm.credit,
       });
-      setMessage("Host saved.");
+      toast.success("Host saved.");
       setEditingId(null);
       setEditForm(null);
       await load();
     } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : "Couldn't save host.");
+      toast.error(err instanceof Error ? err.message : "Couldn't save host.");
     } finally {
       setBusyId(null);
     }
@@ -161,13 +157,12 @@ export function HostsScreen() {
 
   async function setActive(row: CatalogHostSummary, active: boolean) {
     setBusyId(row.id);
-    setActionError(null);
     try {
       await patchHostAdmin(row.id, { active });
-      setMessage(active ? "Host set active." : "Host set inactive.");
+      toast.success(active ? "Host set active." : "Host set inactive.");
       await load();
     } catch (err: unknown) {
-      setActionError(
+      toast.error(
         err instanceof Error ? err.message : "Couldn't update host.",
       );
     } finally {
@@ -177,21 +172,20 @@ export function HostsScreen() {
 
   async function onDelete(row: CatalogHostSummary) {
     if (row.experienceCount > 0) {
-      setActionError(
+      toast.error(
         `Delete or move this host's ${row.experienceCount} listing${row.experienceCount === 1 ? "" : "s"} first.`,
       );
       return;
     }
     if (!window.confirm(`Delete host “${row.businessName}”?`)) return;
     setBusyId(row.id);
-    setActionError(null);
     try {
       await deleteHostAdmin(row.id);
       if (editingId === row.id) cancelEdit();
-      setMessage("Host deleted.");
+      toast.success("Host deleted.");
       await load();
     } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : "Couldn't delete host.");
+      toast.error(err instanceof Error ? err.message : "Couldn't delete host.");
     } finally {
       setBusyId(null);
     }
@@ -252,13 +246,6 @@ export function HostsScreen() {
           </select>
         </label>
       </div>
-
-      {message ? <p className={`t-body-sm ${styles.message}`}>{message}</p> : null}
-      {actionError ? (
-        <p className={`t-body-sm ${styles.actionError}`} role="alert">
-          {actionError}
-        </p>
-      ) : null}
 
       {editingId && editForm ? (
         <form className={styles.editPanel} onSubmit={onSave}>

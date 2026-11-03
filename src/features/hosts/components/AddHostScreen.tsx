@@ -5,9 +5,11 @@ import { useState, type FormEvent } from "react";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
 import { createHostAdmin, type HostCredit } from "@/shared/utils/catalogApi";
+import { useToast } from "@/shared/components/Toast";
 import styles from "../styles/HostsScreen.module.css";
 
 export function AddHostScreen() {
+  const toast = useToast();
   const router = useRouter();
   const [businessName, setBusinessName] = useState("");
   const [personName, setPersonName] = useState("");
@@ -15,16 +17,14 @@ export function AddHostScreen() {
   const [active, setActive] = useState(true);
   const [credit, setCredit] = useState<HostCredit>("hosted");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function onSave(e: FormEvent) {
     e.preventDefault();
     if (!businessName.trim() || !personName.trim() || !phone.trim()) {
-      setError("Business, contact, and phone can't be empty.");
+      toast.error("Business, contact, and phone can't be empty.");
       return;
     }
     setSaving(true);
-    setError(null);
     try {
       await createHostAdmin({
         businessName: businessName.trim(),
@@ -33,9 +33,10 @@ export function AddHostScreen() {
         active,
         credit,
       });
+      toast.success("Host created.");
       router.push("/hosts");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Couldn't create host.");
+      toast.error(err instanceof Error ? err.message : "Couldn't create host.");
       setSaving(false);
     }
   }
@@ -99,11 +100,6 @@ export function AddHostScreen() {
           Cancel
         </Button>
       </div>
-      {error ? (
-        <p className={`t-body-sm ${styles.actionError}`} role="alert">
-          {error}
-        </p>
-      ) : null}
     </form>
   );
 }

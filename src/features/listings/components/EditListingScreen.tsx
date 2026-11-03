@@ -18,6 +18,7 @@ import {
   type ContentLink,
   type ExperienceContent,
 } from "@/shared/utils/catalogApi";
+import { useToast } from "@/shared/components/Toast";
 import styles from "../styles/EditListingScreen.module.css";
 
 type Props = { id: string };
@@ -221,14 +222,13 @@ function buildContent(form: FormState): ExperienceContent {
 }
 
 export function EditListingScreen({ id }: Props) {
+  const toast = useToast();
   const router = useRouter();
   const [form, setForm] = useState<FormState | null>(null);
   const [hostLabel, setHostLabel] = useState("");
   const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | undefined>();
   const [coverPhotoAlt, setCoverPhotoAlt] = useState<string | undefined>();
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [tagDraft, setTagDraft] = useState("");
@@ -255,8 +255,6 @@ export function EditListingScreen({ id }: Props) {
   }, [id]);
 
   function touch() {
-    setMessage(null);
-    setSaveError(null);
   }
 
   function patchField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -346,18 +344,17 @@ export function EditListingScreen({ id }: Props) {
     e.preventDefault();
     if (!form) return;
     if (!form.title.trim()) {
-      setSaveError("Add a title.");
+      toast.error("Add a title.");
       return;
     }
     if (form.status === "published" && !form.verdict.trim()) {
-      setSaveError("Published listings need a one-line verdict.");
+      toast.error("Published listings need a one-line verdict.");
       return;
     }
 
     const tags = form.tags.map((t) => t.trim()).filter(Boolean);
 
     setSaving(true);
-    setSaveError(null);
     try {
       const saved = await patchExperienceAdmin(id, {
         title: form.title.trim(),
@@ -396,9 +393,9 @@ export function EditListingScreen({ id }: Props) {
         content: buildContent(form),
       });
       setForm(toForm(saved));
-      setMessage("Saved.");
+      toast.success("Saved.");
     } catch (err: unknown) {
-      setSaveError(err instanceof Error ? err.message : "Couldn't save.");
+      toast.error(err instanceof Error ? err.message : "Couldn't save.");
     } finally {
       setSaving(false);
     }
@@ -413,12 +410,12 @@ export function EditListingScreen({ id }: Props) {
       return;
     }
     setDeleting(true);
-    setSaveError(null);
     try {
       await deleteExperienceAdmin(id);
+      toast.success("Listing deleted.");
       router.push("/listings");
     } catch (err: unknown) {
-      setSaveError(err instanceof Error ? err.message : "Couldn't delete.");
+      toast.error(err instanceof Error ? err.message : "Couldn't delete.");
       setDeleting(false);
     }
   }
@@ -431,8 +428,7 @@ export function EditListingScreen({ id }: Props) {
     );
     setCoverPhotoUrl(saved.coverPhotoUrl);
     setCoverPhotoAlt(saved.coverPhotoAlt);
-    setMessage("Cover uploaded.");
-    setSaveError(null);
+    toast.success("Cover uploaded.");
   }
 
   if (loadError) {
@@ -1037,14 +1033,6 @@ export function EditListingScreen({ id }: Props) {
             {deleting ? "Deleting…" : "Delete listing"}
           </button>
         </div>
-        {message ? (
-          <p className={`t-body-sm ${styles.message}`}>{message}</p>
-        ) : null}
-        {saveError ? (
-          <p className={`t-body-sm ${styles.error}`} role="alert">
-            {saveError}
-          </p>
-        ) : null}
       </form>
     </div>
   );

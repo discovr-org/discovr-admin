@@ -255,11 +255,20 @@
   outline-offset: var(--focus-offset);
 }
 
+/* Pinned to the bottom of the screen while the form scrolls; last child of .panel. */
 .actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
   align-items: center;
+  margin: 0 calc(-1 * var(--space-5)) calc(-1 * var(--space-5));
+  padding: var(--space-4) var(--space-5);
+  border-top: var(--border-hairline) solid var(--line-subtle);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: var(--surface-raised);
 }
 
 .message {

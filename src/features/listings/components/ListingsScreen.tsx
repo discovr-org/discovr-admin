@@ -13,6 +13,7 @@ import {
   type CatalogExperienceSummary,
 } from "@/shared/utils/catalogApi";
 import { formatInr } from "@/shared/utils/formatInr";
+import { useToast } from "@/shared/components/Toast";
 import styles from "../styles/ListingsScreen.module.css";
 
 type StatusFilter = "all" | "published" | "draft" | "archived";
@@ -32,10 +33,10 @@ function statusLabel(status: CatalogExperienceSummary["status"]) {
 }
 
 export function ListingsScreen() {
+  const toast = useToast();
   const [rows, setRows] = useState<CatalogExperienceSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [hostFilter, setHostFilter] = useState<HostFilter>("all");
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
@@ -99,12 +100,12 @@ export function ListingsScreen() {
       return;
     }
     setBusyId(row.id);
-    setActionError(null);
     try {
       await deleteExperienceAdmin(row.id);
+      toast.success(`Deleted “${row.title}”.`);
       await load();
     } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : "Couldn't delete.");
+      toast.error(err instanceof Error ? err.message : "Couldn't delete.");
     } finally {
       setBusyId(null);
     }
@@ -115,16 +116,16 @@ export function ListingsScreen() {
     status: CatalogExperienceSummary["status"],
   ) {
     if (status === "published" && !row.verdict.trim()) {
-      setActionError("Active listings need a one-line verdict. Edit first.");
+      toast.error("Active listings need a one-line verdict. Edit first.");
       return;
     }
     setBusyId(row.id);
-    setActionError(null);
     try {
       await patchExperienceAdmin(row.id, { status });
+      toast.success(`Status set to ${statusLabel(status)}.`);
       await load();
     } catch (err: unknown) {
-      setActionError(
+      toast.error(
         err instanceof Error ? err.message : "Couldn't update status.",
       );
     } finally {
@@ -221,12 +222,6 @@ export function ListingsScreen() {
           </select>
         </label>
       </div>
-
-      {actionError ? (
-        <p className={`t-body-sm ${styles.actionError}`} role="alert">
-          {actionError}
-        </p>
-      ) : null}
 
       {filtered.length === 0 ? (
         <p className={`t-body-sm ${styles.meta}`}>No listings match these filters.</p>
