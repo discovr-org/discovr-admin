@@ -73,9 +73,16 @@ export type ExperienceContent = {
   };
 };
 
+export const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+export type Weekday = (typeof WEEKDAYS)[number];
+
 export type ListingSchedule = {
   days?: string;
   timeSlot?: string;
+  /** Days with their own hours, e.g. weekends. */
+  altDays?: Weekday[];
+  altTimeSlot?: string;
+  closedDays?: Weekday[];
   bestTime?: string;
   ageGroup?: string;
   minPeople?: string;

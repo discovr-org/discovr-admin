@@ -15,6 +15,8 @@ import {
   type CatalogExperienceAdmin,
   type ContentLink,
   type ExperienceContent,
+  type Weekday,
+  WEEKDAYS,
 } from "@/shared/utils/catalogApi";
 import { useToast } from "@/shared/components/Toast";
 import styles from "../styles/EditListingScreen.module.css";
@@ -44,6 +46,9 @@ type FormState = {
   tags: string[];
   days: string;
   timeSlot: string;
+  altDays: Weekday[];
+  altTimeSlot: string;
+  closedDays: Weekday[];
   bestTime: string;
   ageGroup: string;
   minPeople: string;
@@ -115,6 +120,9 @@ function toForm(row: CatalogExperienceAdmin): FormState {
     tags: [...(row.tags ?? [])],
     days: s.days ?? "",
     timeSlot: s.timeSlot ?? "",
+    altDays: [...(s.altDays ?? [])],
+    altTimeSlot: s.altTimeSlot ?? "",
+    closedDays: [...(s.closedDays ?? [])],
     bestTime: s.bestTime ?? "",
     ageGroup: s.ageGroup ?? "",
     minPeople: s.minPeople ?? "",
@@ -371,6 +379,9 @@ export function EditListingScreen({ id }: Props) {
         schedule: {
           days: form.days.trim() || undefined,
           timeSlot: form.timeSlot.trim() || undefined,
+          altDays: form.altTimeSlot.trim() ? form.altDays : [],
+          altTimeSlot: form.altTimeSlot.trim() || undefined,
+          closedDays: form.closedDays,
           bestTime: form.bestTime.trim() || undefined,
           ageGroup: form.ageGroup.trim() || undefined,
           minPeople: form.minPeople.trim() || undefined,
@@ -666,9 +677,26 @@ export function EditListingScreen({ id }: Props) {
               onChange={(e) => patchField("days", e.target.value)}
             />
             <Input
-              label="Time slot"
+              label="Time slot (usual hours, e.g. 8 am – 1 am)"
               value={form.timeSlot}
               onChange={(e) => patchField("timeSlot", e.target.value)}
+            />
+            <div className={styles.full}>
+              <DayPicker
+                legend="Closed on"
+                value={form.closedDays}
+                onChange={(days) => patchField("closedDays", days)}
+              />
+            </div>
+            <DayPicker
+              legend="Other hours on (e.g. weekends)"
+              value={form.altDays}
+              onChange={(days) => patchField("altDays", days)}
+            />
+            <Input
+              label="Other hours time slot"
+              value={form.altTimeSlot}
+              onChange={(e) => patchField("altTimeSlot", e.target.value)}
             />
             <Input
               label="Best time"
@@ -1095,5 +1123,35 @@ function LineList({
         </ul>
       )}
     </div>
+  );
+}
+
+function DayPicker({
+  legend,
+  value,
+  onChange,
+}: {
+  legend: string;
+  value: Weekday[];
+  onChange: (days: Weekday[]) => void;
+}) {
+  const toggle = (day: Weekday, on: boolean) =>
+    onChange(WEEKDAYS.filter((d) => (d === day ? on : value.includes(d))));
+  return (
+    <fieldset className={styles.choice}>
+      <legend className={styles.textareaLabel}>{legend}</legend>
+      <div className={styles.dayRow}>
+        {WEEKDAYS.map((day) => (
+          <label key={day} className={styles.checkRow}>
+            <input
+              type="checkbox"
+              checked={value.includes(day)}
+              onChange={(e) => toggle(day, e.target.checked)}
+            />
+            <span>{day}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }
