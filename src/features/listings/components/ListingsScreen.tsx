@@ -1,18 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { ListIcon, PlusIcon } from "@/shared/components/icons";
 import {
   deleteExperienceAdmin,
-  fetchExperiences,
   patchExperienceAdmin,
   type CatalogExperienceSummary,
 } from "@/shared/utils/catalogApi";
 import { formatInr } from "@/shared/utils/formatInr";
+import {
+  patchExperienceLocal,
+  removeExperienceLocal,
+  useCatalog,
+} from "@/shared/utils/useCatalog";
 import { useToast } from "@/shared/components/Toast";
 import styles from "../styles/ListingsScreen.module.css";
 
@@ -34,40 +38,11 @@ function statusLabel(status: CatalogExperienceSummary["status"]) {
 
 export function ListingsScreen() {
   const toast = useToast();
-  const [rows, setRows] = useState<CatalogExperienceSummary[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const { experiences: rows, error } = useCatalog();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [hostFilter, setHostFilter] = useState<HostFilter>("all");
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
   const [query, setQuery] = useState("");
-
-  const load = useCallback(() => {
-    setError(null);
-    return fetchExperiences()
-      .then((body) => setRows(body.experiences))
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Couldn't load listings.");
-        setRows([]);
-      });
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchExperiences()
-      .then((body) => {
-        if (!cancelled) setRows(body.experiences);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Couldn't load listings.");
-          setRows([]);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -91,7 +66,8 @@ export function ListingsScreen() {
     });
   }, [rows, statusFilter, hostFilter, priceFilter, query]);
 
-  async function onDelete(row: CatalogExperienceSummary) {
+  // Change the screen first; the API call follows. If it fails, undo and say why.
+  function onDelete(row: CatalogExperienceSummary) {
     if (
       !window.confirm(
         `Delete “${row.title}” for good? Photos and tags go with it.`,
@@ -99,19 +75,15 @@ export function ListingsScreen() {
     ) {
       return;
     }
-    setBusyId(row.id);
-    try {
-      await deleteExperienceAdmin(row.id);
-      toast.success(`Deleted “${row.title}”.`);
-      await load();
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Couldn't delete.");
-    } finally {
-      setBusyId(null);
-    }
+    const undo = removeExperienceLocal(row.id);
+    toast.success(`Deleted “${row.title}”.`);
+    deleteExperienceAdmin(row.id).catch((err: unknown) => {
+      undo();
+      toast.error(err instanceof Error ? err.message : "Couldn't delete. Restored it.");
+    });
   }
 
-  async function setStatus(
+  function setStatus(
     row: CatalogExperienceSummary,
     status: CatalogExperienceSummary["status"],
   ) {
@@ -119,22 +91,14 @@ export function ListingsScreen() {
       toast.error("Active listings need a one-line verdict. Edit first.");
       return;
     }
-    setBusyId(row.id);
-    try {
-      await patchExperienceAdmin(row.id, { status });
-      toast.success(`Status set to ${statusLabel(status)}.`);
-      await load();
-    } catch (err: unknown) {
+    const undo = patchExperienceLocal(row.id, { status });
+    toast.success(`Status set to ${statusLabel(status)}.`);
+    patchExperienceAdmin(row.id, { status }).catch((err: unknown) => {
+      undo();
       toast.error(
-        err instanceof Error ? err.message : "Couldn't update status.",
+        err instanceof Error ? err.message : "Couldn't update status. Put it back.",
       );
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  if (rows === null) {
-    return <p className={`t-body-sm ${styles.meta}`}>Loading listings…</p>;
+    });
   }
 
   if (error) {
@@ -146,6 +110,10 @@ export function ListingsScreen() {
         role="alert"
       />
     );
+  }
+
+  if (rows === null) {
+    return <p className={`t-body-sm ${styles.meta}`}>Loading listings…</p>;
   }
 
   if (rows.length === 0) {
@@ -289,7 +257,6 @@ export function ListingsScreen() {
                           type="button"
                           className={styles.actionBtn}
                           onClick={() => setStatus(row, "published")}
-                          disabled={busyId === row.id}
                         >
                           Set active
                         </button>
@@ -298,7 +265,6 @@ export function ListingsScreen() {
                           type="button"
                           className={styles.actionBtn}
                           onClick={() => setStatus(row, "archived")}
-                          disabled={busyId === row.id}
                         >
                           Set inactive
                         </button>
@@ -313,9 +279,8 @@ export function ListingsScreen() {
                         type="button"
                         className={styles.deleteBtn}
                         onClick={() => onDelete(row)}
-                        disabled={busyId === row.id}
                       >
-                        {busyId === row.id ? "…" : "Delete"}
+                        Delete
                       </button>
                     </div>
                   </td>

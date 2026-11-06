@@ -19,12 +19,7 @@ import {
   SearchIcon,
   UsersIcon,
 } from "@/shared/components/icons";
-import {
-  fetchExperiences,
-  fetchHosts,
-  type CatalogExperienceSummary,
-  type CatalogHostSummary,
-} from "@/shared/utils/catalogApi";
+import { useCatalog } from "@/shared/utils/useCatalog";
 import { searchCatalog } from "@/shared/utils/catalogSearch";
 import { ADMIN_NAV_GROUPS, type AdminNavId } from "../utils/nav";
 import styles from "../styles/AdminShell.module.css";
@@ -61,32 +56,15 @@ export function AdminShell({
   const [navOpen, setNavOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [openHits, setOpenHits] = useState(false);
-  const [experiences, setExperiences] = useState<CatalogExperienceSummary[]>(
-    [],
-  );
-  const [hosts, setHosts] = useState<CatalogHostSummary[]>([]);
+  const { experiences: exp, hosts: hostRows } = useCatalog();
+  const experiences = exp ?? [];
+  const hosts = hostRows ?? [];
   const onSearchRoute =
     pathname === "/search" || pathname.startsWith("/search/");
   const onAddListingRoute =
     pathname === "/listings/new" || pathname.startsWith("/listings/new/");
   const onAddHostRoute =
     pathname === "/hosts/new" || pathname.startsWith("/hosts/new/");
-
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([fetchExperiences(), fetchHosts()])
-      .then(([exp, hostBody]) => {
-        if (cancelled) return;
-        setExperiences(exp.experiences);
-        setHosts(hostBody.hosts);
-      })
-      .catch(() => {
-        /* search page does its own fetch */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {

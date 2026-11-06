@@ -7,11 +7,9 @@ import { Badge } from "@/shared/components/Badge";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { SearchIcon } from "@/shared/components/icons";
 import {
-  fetchExperiences,
-  fetchHosts,
   type CatalogExperienceSummary,
-  type CatalogHostSummary,
 } from "@/shared/utils/catalogApi";
+import { useCatalog } from "@/shared/utils/useCatalog";
 import { searchCatalog } from "@/shared/utils/catalogSearch";
 import styles from "../styles/SearchScreen.module.css";
 
@@ -34,37 +32,15 @@ function statusLabel(status: CatalogExperienceSummary["status"]) {
 export function SearchScreen({ initialQuery = "" }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
-  const [experiences, setExperiences] = useState<
-    CatalogExperienceSummary[] | null
-  >(null);
-  const [hosts, setHosts] = useState<CatalogHostSummary[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const { experiences, hosts, error } = useCatalog();
 
   useEffect(() => {
     setQuery(initialQuery);
   }, [initialQuery]);
 
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([fetchExperiences(), fetchHosts()])
-      .then(([exp, hostBody]) => {
-        if (cancelled) return;
-        setExperiences(exp.experiences);
-        setHosts(hostBody.hosts);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Couldn't search.");
-        setExperiences([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const hits = useMemo(() => {
     if (!experiences) return [];
-    return searchCatalog(query, experiences, hosts);
+    return searchCatalog(query, experiences, hosts ?? []);
   }, [query, experiences, hosts]);
 
   const listingHits = hits.filter((h) => h.kind === "listing");

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { patchExperienceLocal } from "@/shared/utils/useCatalog";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/shared/components/Button";
@@ -231,6 +232,14 @@ export function EditListingScreen({ id }: Props) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [tagDraft, setTagDraft] = useState("");
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
   useEffect(() => {
     let cancelled = false;
@@ -253,6 +262,7 @@ export function EditListingScreen({ id }: Props) {
   }, [id]);
 
   function touch() {
+    setDirty(true);
   }
 
   function patchField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -398,6 +408,15 @@ export function EditListingScreen({ id }: Props) {
         content: buildContent(form),
       });
       setForm(toForm(saved));
+      setDirty(false);
+      patchExperienceLocal(id, {
+        title: saved.title,
+        slug: saved.slug,
+        status: saved.status,
+        verdict: saved.verdict,
+        priceFromInr: saved.priceFromInr,
+        placeNeighborhood: saved.placeNeighborhood,
+      });
       toast.success("Saved.");
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Couldn't save.");
@@ -451,7 +470,15 @@ export function EditListingScreen({ id }: Props) {
         Host: {hostLabel || "—"} ·{" "}
         <Link href="/listings">Back to listings</Link>
       </p>
+      <nav className={styles.jump} aria-label="Jump to section">
+        {JUMPS.map(([anchor, label]) => (
+          <a key={anchor} href={`#sec-${anchor}`} className={styles.jumpLink}>
+            {label}
+          </a>
+        ))}
+      </nav>
       <form className={styles.panel} onSubmit={onSave}>
+        <div id="sec-photos" className={styles.group}>
         <ListingPhotos
           experienceId={id}
           title={form.title.trim()}
@@ -472,7 +499,8 @@ export function EditListingScreen({ id }: Props) {
             })
           }
         />
-        <div className={styles.section}>
+        </div>
+        <div id="sec-basics" className={styles.section}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Basics</h2>
           <div className={styles.grid2}>
             <Input
@@ -579,7 +607,7 @@ export function EditListingScreen({ id }: Props) {
           </div>
         </div>
 
-        <div className={styles.section}>
+        <div id="sec-place" className={styles.section}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Place</h2>
           <div className={styles.grid2}>
             <Input
@@ -622,7 +650,7 @@ export function EditListingScreen({ id }: Props) {
           </div>
         </div>
 
-        <div className={styles.section}>
+        <div id="sec-price" className={styles.section}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Price story</h2>
           <div className={styles.grid2}>
             <div className={styles.full}>
@@ -668,7 +696,7 @@ export function EditListingScreen({ id }: Props) {
           </div>
         </div>
 
-        <div className={styles.section}>
+        <div id="sec-when" className={styles.section}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>When</h2>
           <div className={styles.grid2}>
             <Input
@@ -742,7 +770,7 @@ export function EditListingScreen({ id }: Props) {
           </div>
         </div>
 
-        <div className={styles.section}>
+        <div id="sec-links" className={styles.section}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Links</h2>
           <p className={`t-body-sm ${styles.hint}`}>
             Paste maps, menu, WhatsApp, or Instagram URLs from the sheet.
@@ -775,7 +803,7 @@ export function EditListingScreen({ id }: Props) {
           </div>
         </div>
 
-        <div className={styles.section}>
+        <div id="sec-booking" className={styles.section}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Booking</h2>
           <fieldset className={styles.choice}>
             <legend className={styles.textareaLabel}>How guests book</legend>
@@ -814,7 +842,7 @@ export function EditListingScreen({ id }: Props) {
           )}
         </div>
 
-        <div className={styles.section}>
+        <div id="sec-faqs" className={styles.section}>
           <div className={styles.sectionHead}>
             <h2 className={`t-title-sm ${styles.sectionTitle}`}>FAQs</h2>
             <button type="button" className={styles.addBtn} onClick={addFaq}>
@@ -867,7 +895,7 @@ export function EditListingScreen({ id }: Props) {
           )}
         </div>
 
-        <div className={styles.section}>
+        <div id="sec-policy" className={styles.section}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Policy</h2>
           <div className={styles.grid2}>
             <div className={`${styles.textareaField} ${styles.full}`}>
@@ -1010,7 +1038,7 @@ export function EditListingScreen({ id }: Props) {
           />
         </div>
 
-        <div className={styles.section}>
+        <div id="sec-tags" className={styles.section}>
           <div className={styles.sectionHead}>
             <h2 className={`t-title-sm ${styles.sectionTitle}`}>Tags</h2>
           </div>
@@ -1058,6 +1086,9 @@ export function EditListingScreen({ id }: Props) {
           <Button href="/listings" variant="secondary">
             Cancel
           </Button>
+          <span className={`t-body-sm ${styles.message}`} role="status">
+            {dirty ? "Unsaved changes" : "All changes saved"}
+          </span>
           <button
             type="button"
             className={styles.danger}
@@ -1071,6 +1102,19 @@ export function EditListingScreen({ id }: Props) {
     </div>
   );
 }
+
+const JUMPS = [
+  ["photos", "Photos"],
+  ["basics", "Basics"],
+  ["place", "Place"],
+  ["price", "Price"],
+  ["when", "When"],
+  ["links", "Links"],
+  ["booking", "Booking"],
+  ["faqs", "FAQs"],
+  ["policy", "Policy"],
+  ["tags", "Tags"],
+] as const;
 
 type LineListProps = {
   title: string;

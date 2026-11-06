@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/shared/components/Badge";
 import { BarList } from "@/shared/components/BarList";
 import { Button } from "@/shared/components/Button";
@@ -12,11 +12,10 @@ import { ProgressBar } from "@/shared/components/ProgressBar";
 import { StatCard } from "@/shared/components/StatCard";
 import { ListIcon, StarIcon, UsersIcon } from "@/shared/components/icons";
 import {
-  fetchExperiences,
-  fetchHosts,
   refreshFeedCacheAdmin,
   type CatalogExperienceSummary,
 } from "@/shared/utils/catalogApi";
+import { useCatalog } from "@/shared/utils/useCatalog";
 import { formatInr } from "@/shared/utils/formatInr";
 import styles from "../styles/OverviewDashboard.module.css";
 
@@ -33,11 +32,8 @@ function statusLabel(status: CatalogExperienceSummary["status"]) {
 }
 
 export function OverviewDashboard() {
-  const [listings, setListings] = useState<CatalogExperienceSummary[] | null>(
-    null,
-  );
-  const [hostCount, setHostCount] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const { experiences: listings, hosts, error: loadError } = useCatalog();
+  const hostCount = hosts?.length ?? 0;
   const [refreshing, setRefreshing] = useState(false);
   const [refreshNote, setRefreshNote] = useState<string | null>(null);
 
@@ -60,24 +56,6 @@ export function OverviewDashboard() {
     }
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([fetchExperiences(), fetchHosts()])
-      .then(([exp, hosts]) => {
-        if (cancelled) return;
-        setListings(exp.experiences);
-        setHostCount(hosts.hosts.length);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Couldn't load overview.");
-        setListings([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const stats = useMemo(() => {
     const rows = listings ?? [];
     const live = rows.filter((r) => r.status === "published").length;
@@ -99,6 +77,24 @@ export function OverviewDashboard() {
       hostCount,
     };
   }, [listings, hostCount]);
+
+  // Listings that guests can't fully use yet. Archived ones are on purpose, so skipped.
+  const attention = useMemo(
+    () =>
+      (listings ?? [])
+        .filter((r) => r.status !== "archived")
+        .map((r) => ({
+          row: r,
+          issues: [
+            !r.verdict.trim() && "No verdict",
+            !r.hasPhoto && "No photo",
+            r.priceFromInr <= 0 && "No price",
+            r.status === "published" && !r.hostActive && "Host inactive",
+          ].filter((x): x is string => Boolean(x)),
+        }))
+        .filter((x) => x.issues.length > 0),
+    [listings],
+  );
 
   const placeBars = useMemo(() => {
     const counts = new Map<string, number>();
@@ -129,16 +125,16 @@ export function OverviewDashboard() {
     [stats],
   );
 
-  if (listings === null) {
-    return <p className={`t-body-sm ${styles.meta}`}>Loading overview…</p>;
-  }
-
-  if (error) {
+  if (loadError) {
     return (
       <p className={`t-body-sm ${styles.error}`} role="alert">
-        {error}. Start the API on 8080.
+        {loadError}. Start the API on 8080.
       </p>
     );
+  }
+
+  if (listings === null) {
+    return <p className={`t-body-sm ${styles.meta}`}>Loading overview…</p>;
   }
 
   const liveShare =
@@ -169,6 +165,42 @@ export function OverviewDashboard() {
           {refreshNote}
         </p>
       ) : null}
+
+      <Card>
+        <CardHeader
+          title="Needs attention"
+          subtitle={
+            attention.length === 0
+              ? "Nothing missing"
+              : `${attention.length} listing${attention.length === 1 ? "" : "s"} with gaps`
+          }
+        />
+        <CardBody flush>
+          {attention.length === 0 ? (
+            <p className={`t-body-sm ${styles.metaPad}`}>
+              Every listing has a verdict, photo, price and an active host.
+            </p>
+          ) : (
+            <ul className={styles.attention}>
+              {attention.slice(0, 8).map(({ row, issues }) => (
+                <li key={row.id}>
+                  <Link className={styles.listingTitle} href={`/listings/${row.id}`}>
+                    {row.title}
+                  </Link>
+                  <span className={styles.issues}>
+                    <Badge tone={statusTone(row.status)}>{statusLabel(row.status)}</Badge>
+                    {issues.map((i) => (
+                      <Badge key={i} tone="notice">
+                        {i}
+                      </Badge>
+                    ))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardBody>
+      </Card>
 
       <section className={styles.stats3} aria-label="Snapshot">
         <StatCard

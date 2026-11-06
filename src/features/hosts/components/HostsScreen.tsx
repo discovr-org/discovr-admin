@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
 import { EmptyState } from "@/shared/components/EmptyState";
@@ -9,12 +9,12 @@ import { Input } from "@/shared/components/Input";
 import { PlusIcon, UsersIcon } from "@/shared/components/icons";
 import {
   deleteHostAdmin,
-  fetchHosts,
   patchHostAdmin,
   uploadHostAvatarAdmin,
   type CatalogHostSummary,
   type HostCredit,
 } from "@/shared/utils/catalogApi";
+import { patchHostLocal, removeHostLocal, useCatalog } from "@/shared/utils/useCatalog";
 import { useToast } from "@/shared/components/Toast";
 import styles from "../styles/HostsScreen.module.css";
 
@@ -32,39 +32,10 @@ type ActiveFilter = "all" | "active" | "inactive";
 
 export function HostsScreen() {
   const toast = useToast();
-  const [rows, setRows] = useState<CatalogHostSummary[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { hosts: rows, error, reload: load } = useCatalog();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
-
-  const load = useCallback(() => {
-    setError(null);
-    return fetchHosts()
-      .then((body) => setRows(body.hosts))
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Couldn't load hosts.");
-        setRows([]);
-      });
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchHosts()
-      .then((body) => {
-        if (!cancelled) setRows(body.hosts);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Couldn't load hosts.");
-          setRows([]);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const filtered = useMemo(() => {
     return (rows ?? []).filter((row) => {
@@ -103,19 +74,7 @@ export function HostsScreen() {
           }
         : prev,
     );
-    setRows((prev) =>
-      prev
-        ? prev.map((row) =>
-            row.id === saved.id
-              ? {
-                  ...row,
-                  avatarUrl: saved.avatarUrl,
-                  avatarAlt: saved.avatarAlt,
-                }
-              : row,
-          )
-        : prev,
-    );
+    void load();
     toast.success("Avatar uploaded.");
   }
 
@@ -124,7 +83,7 @@ export function HostsScreen() {
     setEditForm(null);
   }
 
-  async function onSave(e: FormEvent) {
+  function onSave(e: FormEvent) {
     e.preventDefault();
     if (!editingId || !editForm) return;
     if (
@@ -135,42 +94,33 @@ export function HostsScreen() {
       toast.error("Business, contact, and phone can't be empty.");
       return;
     }
-    setBusyId(editingId);
-    try {
-      await patchHostAdmin(editingId, {
-        businessName: editForm.businessName.trim(),
-        personName: editForm.personName.trim(),
-        phone: editForm.phone.trim(),
-        active: editForm.active,
-        credit: editForm.credit,
-      });
-      toast.success("Host saved.");
-      setEditingId(null);
-      setEditForm(null);
-      await load();
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Couldn't save host.");
-    } finally {
-      setBusyId(null);
-    }
+    const id = editingId;
+    const patch = {
+      businessName: editForm.businessName.trim(),
+      personName: editForm.personName.trim(),
+      phone: editForm.phone.trim(),
+      active: editForm.active,
+      credit: editForm.credit,
+    };
+    const undo = patchHostLocal(id, patch);
+    toast.success("Host saved.");
+    cancelEdit();
+    patchHostAdmin(id, patch).catch((err: unknown) => {
+      undo();
+      toast.error(err instanceof Error ? err.message : "Couldn't save host. Put it back.");
+    });
   }
 
-  async function setActive(row: CatalogHostSummary, active: boolean) {
-    setBusyId(row.id);
-    try {
-      await patchHostAdmin(row.id, { active });
-      toast.success(active ? "Host set active." : "Host set inactive.");
-      await load();
-    } catch (err: unknown) {
-      toast.error(
-        err instanceof Error ? err.message : "Couldn't update host.",
-      );
-    } finally {
-      setBusyId(null);
-    }
+  function setActive(row: CatalogHostSummary, active: boolean) {
+    const undo = patchHostLocal(row.id, { active });
+    toast.success(active ? "Host set active." : "Host set inactive.");
+    patchHostAdmin(row.id, { active }).catch((err: unknown) => {
+      undo();
+      toast.error(err instanceof Error ? err.message : "Couldn't update host. Put it back.");
+    });
   }
 
-  async function onDelete(row: CatalogHostSummary) {
+  function onDelete(row: CatalogHostSummary) {
     if (row.experienceCount > 0) {
       toast.error(
         `Delete or move this host's ${row.experienceCount} listing${row.experienceCount === 1 ? "" : "s"} first.`,
@@ -178,21 +128,13 @@ export function HostsScreen() {
       return;
     }
     if (!window.confirm(`Delete host “${row.businessName}”?`)) return;
-    setBusyId(row.id);
-    try {
-      await deleteHostAdmin(row.id);
-      if (editingId === row.id) cancelEdit();
-      toast.success("Host deleted.");
-      await load();
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Couldn't delete host.");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  if (rows === null) {
-    return <p className={`t-body-sm ${styles.meta}`}>Loading hosts…</p>;
+    const undo = removeHostLocal(row.id);
+    if (editingId === row.id) cancelEdit();
+    toast.success("Host deleted.");
+    deleteHostAdmin(row.id).catch((err: unknown) => {
+      undo();
+      toast.error(err instanceof Error ? err.message : "Couldn't delete host. Restored it.");
+    });
   }
 
   if (error) {
@@ -204,6 +146,10 @@ export function HostsScreen() {
         role="alert"
       />
     );
+  }
+
+  if (rows === null) {
+    return <p className={`t-body-sm ${styles.meta}`}>Loading hosts…</p>;
   }
 
   if (rows.length === 0) {
@@ -254,7 +200,6 @@ export function HostsScreen() {
             label="Avatar"
             previewUrl={editForm.avatarUrl}
             previewAlt={editForm.avatarAlt || editForm.personName}
-            disabled={busyId === editingId}
             onUpload={onAvatarUpload}
           />
           <div className={styles.editGrid}>
@@ -337,9 +282,8 @@ export function HostsScreen() {
             <Button
               type="submit"
               variant="primary"
-              disabled={busyId === editingId}
             >
-              {busyId === editingId ? "Saving…" : "Save host"}
+              Save host
             </Button>
             <Button type="button" variant="secondary" onClick={cancelEdit}>
               Cancel
@@ -382,7 +326,6 @@ export function HostsScreen() {
                       type="button"
                       className={styles.editBtn}
                       onClick={() => setActive(row, !row.active)}
-                      disabled={busyId === row.id}
                     >
                       {row.active ? "Set inactive" : "Set active"}
                     </button>
@@ -390,7 +333,6 @@ export function HostsScreen() {
                       type="button"
                       className={styles.editBtn}
                       onClick={() => startEdit(row)}
-                      disabled={busyId === row.id}
                     >
                       Edit
                     </button>
@@ -398,9 +340,8 @@ export function HostsScreen() {
                       type="button"
                       className={styles.deleteBtn}
                       onClick={() => onDelete(row)}
-                      disabled={busyId === row.id}
                     >
-                      {busyId === row.id ? "…" : "Delete"}
+                      Delete
                     </button>
                   </div>
                 </td>

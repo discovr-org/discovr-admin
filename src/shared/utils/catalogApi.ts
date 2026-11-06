@@ -11,6 +11,7 @@ export type CatalogExperienceSummary = {
   hostBusinessName: string;
   hostActive: boolean;
   placeNeighborhood: string;
+  hasPhoto: boolean;
 };
 
 export type HostCredit = "hosted" | "run" | "owned";
