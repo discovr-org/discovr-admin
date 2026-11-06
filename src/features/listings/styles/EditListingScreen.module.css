@@ -365,16 +365,23 @@
   gap: var(--space-5);
 }
 
-/* Anchors land below the sticky top bar. */
+/* Anchors land below the top bar and the pinned jump bar. Offsets are measured in the component. */
 .section,
 .group {
-  scroll-margin-top: 120px;
+  scroll-margin-top: var(--jump-offset, 150px);
 }
 
+/* Pinned under the top bar while the form scrolls. One line; scrolls sideways on narrow screens. */
 .jump {
+  position: sticky;
+  top: var(--jump-top, 88px);
+  z-index: calc(var(--z-sticky) - 1);
   display: flex;
-  flex-wrap: wrap;
   gap: var(--space-2);
+  overflow-x: auto;
+  padding: var(--space-2) 0;
+  background: color-mix(in srgb, var(--surface-canvas) 92%, transparent);
+  backdrop-filter: blur(8px);
 }
 
 .jumpLink {
@@ -388,8 +395,20 @@
   text-decoration: none;
 }
 
+.jumpLink {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .jumpLink:hover {
   color: var(--ink-primary);
+}
+
+/* The section you are in. Colour only, so nothing shifts. */
+.jumpLinkActive {
+  color: var(--ink-primary);
+  background: var(--surface-raised);
+  border-color: var(--ink-muted);
 }
 
 .todo {

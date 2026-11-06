@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { patchExperienceLocal } from "@/shared/utils/useCatalog";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/shared/components/Button";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { Input } from "@/shared/components/Input";
@@ -233,6 +233,60 @@ export function EditListingScreen({ id }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [tagDraft, setTagDraft] = useState("");
   const [dirty, setDirty] = useState(false);
+
+  // Jump bar: pinned under the top bar, and the section you are in is highlighted.
+  const screenRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const [active, setActive] = useState<string>(JUMPS[0][0]);
+  const loaded = form !== null;
+
+  useEffect(() => {
+    const screen = screenRef.current;
+    if (!loaded || !screen) return;
+    const header = document.querySelector("header");
+
+    // Pin offsets come from the real heights, so they stay right if the top bar wraps.
+    const measure = () => {
+      const top = header?.getBoundingClientRect().height ?? 0;
+      screen.style.setProperty("--jump-top", `${top}px`);
+      screen.style.setProperty("--jump-offset", `${top + (navRef.current?.offsetHeight ?? 0) + 8}px`);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+
+    // A section counts as "current" while it is in the upper part of the screen.
+    const visible = new Set<string>();
+    const topPx = header?.getBoundingClientRect().height ?? 0;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          const key = e.target.id.replace("sec-", "");
+          if (e.isIntersecting) visible.add(key);
+          else visible.delete(key);
+        }
+        const first = JUMPS.find(([a]) => visible.has(a));
+        if (first) setActive(first[0]);
+      },
+      { rootMargin: `-${topPx + 56}px 0px -55% 0px` },
+    );
+    for (const [a] of JUMPS) {
+      const el = document.getElementById(`sec-${a}`);
+      if (el) io.observe(el);
+    }
+    // Short last sections never reach the upper band, so the page bottom means "last tab".
+    const onScroll = () => {
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) {
+        setActive(JUMPS[JUMPS.length - 1][0]);
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      io.disconnect();
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [loaded]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -474,7 +528,7 @@ export function EditListingScreen({ id }: Props) {
   if (!form.faqs.some((f) => f.q.trim() && f.a.trim())) todo.push(["faqs", "Add a few FAQs"]);
 
   return (
-    <div className={styles.screen}>
+    <div className={styles.screen} ref={screenRef}>
       {todo.length > 0 ? (
         <section className={styles.todo} aria-label="Finish setting up">
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Finish setting up</h2>
@@ -493,9 +547,15 @@ export function EditListingScreen({ id }: Props) {
         Host: {hostLabel || "—"} ·{" "}
         <Link href="/listings">Back to listings</Link>
       </p>
-      <nav className={styles.jump} aria-label="Jump to section">
+      <nav className={styles.jump} aria-label="Jump to section" ref={navRef}>
         {JUMPS.map(([anchor, label]) => (
-          <a key={anchor} href={`#sec-${anchor}`} className={styles.jumpLink}>
+          <a
+            key={anchor}
+            href={`#sec-${anchor}`}
+            className={`${styles.jumpLink} ${active === anchor ? styles.jumpLinkActive : ""}`}
+            aria-current={active === anchor ? "true" : undefined}
+            onClick={() => setActive(anchor)}
+          >
             {label}
           </a>
         ))}
