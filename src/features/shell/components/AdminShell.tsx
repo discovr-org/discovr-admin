@@ -24,6 +24,10 @@ import { searchCatalog } from "@/shared/utils/catalogSearch";
 import { ADMIN_NAV_GROUPS, type AdminNavId } from "../utils/nav";
 import styles from "../styles/AdminShell.module.css";
 
+/** "g" then one of these keys. Shown next to each nav link. */
+const GO_KEYS: Record<string, string> = { o: "/", l: "/listings", h: "/hosts", s: "/search" };
+const NAV_KEYS: Record<AdminNavId, string> = { overview: "G O", listings: "G L", hosts: "G H", search: "G S" };
+
 const ICONS: Record<AdminNavId, typeof LayoutDashboardIcon> = {
   overview: LayoutDashboardIcon,
   listings: ListIcon,
@@ -78,7 +82,26 @@ export function AdminShell({
         setOpenHits(true);
       }
       if (e.key === "Escape") setOpenHits(false);
+
+      // Single-key shortcuts: "c" creates, "g" then o / l / h / s goes to a page.
+      const t = e.target as HTMLElement | null;
+      if (e.metaKey || e.ctrlKey || e.altKey || t?.closest("input, textarea, select, [contenteditable]")) return;
+      const key = e.key.toLowerCase();
+      if (goPending) {
+        goPending = false;
+        window.clearTimeout(goTimer);
+        const to = GO_KEYS[key];
+        if (to) router.push(to);
+      } else if (key === "g") {
+        goPending = true;
+        goTimer = window.setTimeout(() => (goPending = false), 1000);
+      } else if (key === "c") {
+        e.preventDefault();
+        router.push("/listings/new");
+      }
     }
+    let goPending = false;
+    let goTimer = 0;
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [router]);
@@ -144,6 +167,7 @@ export function AdminShell({
                     >
                       <Icon />
                       {item.label}
+                      <kbd className={styles.navKey}>{NAV_KEYS[item.id]}</kbd>
                     </Link>
                   );
                 })}

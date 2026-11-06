@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import {
   fetchExperiences,
   fetchHosts,
@@ -16,23 +16,41 @@ import {
  * `undo` that puts back just that row if the API says no (the Linear way, minus the sync engine).
  * ponytail: no focus/interval refetch. Add if two people edit at once and see stale lists.
  */
-function slot<T>(fetcher: () => Promise<T>) {
+function slot<T>(key: string, fetcher: () => Promise<T>) {
   let value: T | null = null;
+  let hydrated = false;
   let inflight: Promise<T> | null = null;
   let version = 0; // bumped on every local change
   const listeners = new Set<(v: T) => void>();
+  // The last copy is kept in localStorage, so a reload shows data at once instead of "Loading…".
+  const read = () => {
+    if (!hydrated && typeof window !== "undefined") {
+      hydrated = true;
+      try {
+        value = JSON.parse(localStorage.getItem(key) ?? "null") as T | null;
+      } catch {
+        /* bad copy: start empty */
+      }
+    }
+    return value;
+  };
   const publish = (v: T) => {
     value = v;
+    try {
+      localStorage.setItem(key, JSON.stringify(v));
+    } catch {
+      /* storage full or blocked: keep working in memory */
+    }
     listeners.forEach((fn) => fn(v));
   };
   return {
-    get: () => value,
+    get: read,
     update(fn: (v: T) => T) {
-      if (value === null) return;
+      if (read() === null) return;
       version += 1;
-      publish(fn(value));
+      publish(fn(value as T));
     },
-    subscribe(fn: (v: T) => void) {
+    subscribe(fn: () => void) {
       listeners.add(fn);
       return () => void listeners.delete(fn);
     },
@@ -52,8 +70,8 @@ function slot<T>(fetcher: () => Promise<T>) {
   };
 }
 
-const experiencesSlot = slot(() => fetchExperiences().then((r) => r.experiences));
-const hostsSlot = slot(() => fetchHosts().then((r) => r.hosts));
+const experiencesSlot = slot("discovr.admin.experiences", () => fetchExperiences().then((r) => r.experiences));
+const hostsSlot = slot("discovr.admin.hosts", () => fetchHosts().then((r) => r.hosts));
 
 type Undo = () => void;
 
@@ -92,7 +110,8 @@ export const patchHostLocal = hostOps.patch;
 export const removeHostLocal = hostOps.remove;
 
 function useSlot<T>(s: ReturnType<typeof slot<T>>) {
-  const [data, setData] = useState<T | null>(s.get());
+  // Server render and first client render both see null, so there is no hydration mismatch.
+  const data = useSyncExternalStore(s.subscribe, s.get, () => null);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(
@@ -105,10 +124,8 @@ function useSlot<T>(s: ReturnType<typeof slot<T>>) {
   );
 
   useEffect(() => {
-    const off = s.subscribe(setData);
     void reload();
-    return off;
-  }, [s, reload]);
+  }, [reload]);
 
   return { data, error, reload };
 }

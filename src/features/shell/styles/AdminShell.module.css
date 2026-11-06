@@ -490,3 +490,11 @@
     min-width: 0;
   }
 }
+
+.navKey {
+  margin-left: auto;
+  color: var(--ink-subtle);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
