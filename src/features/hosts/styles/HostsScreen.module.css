@@ -36,7 +36,7 @@
 .table td {
   padding: var(--space-4);
   border-bottom: var(--border-hairline) solid var(--line-subtle);
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .table tr:last-child td {

@@ -391,3 +391,23 @@
 .jumpLink:hover {
   color: var(--ink-primary);
 }
+
+.todo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border: var(--border-hairline) solid var(--line-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.todoList {
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--ink-muted);
+}
+
+.todoLink {
+  color: var(--ink-primary);
+}

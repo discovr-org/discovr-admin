@@ -464,8 +464,31 @@ export function EditListingScreen({ id }: Props) {
     return <p className={`t-body-sm ${styles.meta}`}>Loading listing…</p>;
   }
 
+  // What a guest would miss. Updates as you type; each item jumps to its section.
+  const todo: Array<[anchor: string, text: string]> = [];
+  if (media.photos.length === 0) todo.push(["photos", "Add a photo"]);
+  if (!form.verdict.trim()) todo.push(["basics", "Write the one-line verdict"]);
+  if (!form.about.trim()) todo.push(["basics", "Write the About"]);
+  if (Number(form.priceFromInr) <= 0) todo.push(["price", "Set the price (or leave it for ask-the-host)"]);
+  if (!form.timeSlot.trim() && !form.days.trim()) todo.push(["when", "Add the hours"]);
+  if (!form.faqs.some((f) => f.q.trim() && f.a.trim())) todo.push(["faqs", "Add a few FAQs"]);
+
   return (
     <div className={styles.screen}>
+      {todo.length > 0 ? (
+        <section className={styles.todo} aria-label="Finish setting up">
+          <h2 className={`t-title-sm ${styles.sectionTitle}`}>Finish setting up</h2>
+          <ul className={styles.todoList}>
+            {todo.map(([anchor, text]) => (
+              <li key={text}>
+                <a href={`#sec-${anchor}`} className={styles.todoLink}>
+                  {text}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <p className={`t-body-sm ${styles.meta}`}>
         Host: {hostLabel || "—"} ·{" "}
         <Link href="/listings">Back to listings</Link>

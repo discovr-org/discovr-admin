@@ -342,6 +342,11 @@
   color: var(--ink-subtle);
 }
 
+/* The global :focus-visible ring would box the input inside the pill. The pill draws the ring. */
+.searchInput:focus-visible {
+  outline: none;
+}
+
 .search:focus-within {
   outline: var(--border-focus) solid var(--focus-ring);
   outline-offset: var(--focus-offset);
