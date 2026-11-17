@@ -22,7 +22,8 @@ import {
 import { useToast } from "@/shared/components/Toast";
 import styles from "../styles/EditListingScreen.module.css";
 import { ListingPhotos } from "./ListingPhotos";
-import { StoryPhotos } from "./StoryPhotos";
+import { StoryBuilder } from "./StoryBuilder";
+import { cleanBlocks, parseBlocks } from "../utils/storyBlocks";
 
 type Props = { id: string };
 
@@ -182,6 +183,7 @@ function buildContent(form: FormState): ExperienceContent {
 
   return {
     ...form.baseContent,
+    ...(Array.isArray(form.baseContent.blocks) ? { blocks: cleanBlocks(parseBlocks(form.baseContent.blocks)) } : {}),
     aka: form.aka.trim() || undefined,
     priceNarrative: form.priceNarrative.trim() || undefined,
     priceUnit: form.priceUnit.trim() || undefined,
@@ -569,17 +571,24 @@ export function EditListingScreen({ id }: Props) {
           menuPages={media.menuPages}
           onSaved={(row) => setMedia(listingMedia(row))}
         />
-        <StoryPhotos
+        </div>
+        <div id="sec-story" className={`${styles.group} ${styles.wide}`}>
+        <StoryBuilder
           blocks={form.baseContent.blocks}
-          onChange={(blocks) =>
-            patchField("baseContent", { ...form.baseContent, blocks })
-          }
-          hidden={form.baseContent.hideStoryPhotos === true}
-          onHiddenChange={(hideStoryPhotos) =>
-            patchField("baseContent", {
-              ...form.baseContent,
-              hideStoryPhotos: hideStoryPhotos || undefined,
-            })
+          onChange={(blocks) => patchField("baseContent", { ...form.baseContent, blocks })}
+          seed={{
+            title: form.title,
+            about: form.about,
+            included: form.included,
+            notIncluded: form.notIncluded,
+            carry: form.carry,
+            faqs: form.faqs,
+          }}
+          verdict={form.verdict}
+          venue={form.format === "venue"}
+          hidePhotos={form.baseContent.hideStoryPhotos === true}
+          onHidePhotosChange={(hideStoryPhotos) =>
+            patchField("baseContent", { ...form.baseContent, hideStoryPhotos: hideStoryPhotos || undefined })
           }
         />
         </div>
@@ -1188,6 +1197,7 @@ export function EditListingScreen({ id }: Props) {
 
 const JUMPS = [
   ["photos", "Photos"],
+  ["story", "Story"],
   ["basics", "Basics"],
   ["place", "Place"],
   ["price", "Price"],
