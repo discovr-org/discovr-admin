@@ -5,7 +5,7 @@ import { Input } from "@/shared/components/Input";
 import { useToast } from "@/shared/components/Toast";
 import { uploadContentImageAdmin } from "@/shared/utils/catalogApi";
 import type { StoryBlock } from "../utils/storyBlocks";
-import styles from "../styles/StoryBuilder.module.css";
+import styles from "../styles/ListingEditor.module.css";
 
 type Props = { block: StoryBlock; onChange: (block: StoryBlock) => void };
 

@@ -428,14 +428,16 @@
 }
 
 .todoLink {
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--ink-primary);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
-/* The form stays reading-width; the story builder gets the room it needs. */
-.panel > * {
-  max-width: 880px;
-}
-
-.panel > .wide {
-  max-width: none;
+.section[hidden],
+.group[hidden] {
+  display: none;
 }

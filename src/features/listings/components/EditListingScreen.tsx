@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { patchExperienceLocal } from "@/shared/utils/useCatalog";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/shared/components/Button";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { Input } from "@/shared/components/Input";
@@ -22,8 +22,11 @@ import {
 import { useToast } from "@/shared/components/Toast";
 import styles from "../styles/EditListingScreen.module.css";
 import { ListingPhotos } from "./ListingPhotos";
-import { StoryBuilder } from "./StoryBuilder";
-import { cleanBlocks, parseBlocks } from "../utils/storyBlocks";
+import { BLOCK_LABEL, WIDGETS, cleanBlocks, moveBlock, parseBlocks, seedBlocks, type StoryBlock } from "../utils/storyBlocks";
+import styles2 from "../styles/ListingEditor.module.css";
+import { BlockEditor } from "./BlockEditor";
+import { ListingLayers, type SectionKey, type Sel } from "./ListingLayers";
+import { ListingPhone } from "./ListingPhone";
 
 type Props = { id: string };
 
@@ -236,59 +239,14 @@ export function EditListingScreen({ id }: Props) {
   const [tagDraft, setTagDraft] = useState("");
   const [dirty, setDirty] = useState(false);
 
-  // Jump bar: pinned under the top bar, and the section you are in is highlighted.
-  const screenRef = useRef<HTMLDivElement>(null);
-  const navRef = useRef<HTMLElement>(null);
-  const [active, setActive] = useState<string>(JUMPS[0][0]);
-  const loaded = form !== null;
+  const [sel, setSel] = useState<Sel>(null);
+  const [tab, setTab] = useState<"widgets" | "edit">("edit");
 
-  useEffect(() => {
-    const screen = screenRef.current;
-    if (!loaded || !screen) return;
-    const header = document.querySelector("header");
+  function select(next: Sel) {
+    setSel(next);
+    setTab("edit");
+  }
 
-    // Pin offsets come from the real heights, so they stay right if the top bar wraps.
-    const measure = () => {
-      const top = header?.getBoundingClientRect().height ?? 0;
-      screen.style.setProperty("--jump-top", `${top}px`);
-      screen.style.setProperty("--jump-offset", `${top + (navRef.current?.offsetHeight ?? 0) + 8}px`);
-    };
-    measure();
-    window.addEventListener("resize", measure);
-
-    // A section counts as "current" while it is in the upper part of the screen.
-    const visible = new Set<string>();
-    const topPx = header?.getBoundingClientRect().height ?? 0;
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          const key = e.target.id.replace("sec-", "");
-          if (e.isIntersecting) visible.add(key);
-          else visible.delete(key);
-        }
-        const first = JUMPS.find(([a]) => visible.has(a));
-        if (first) setActive(first[0]);
-      },
-      { rootMargin: `-${topPx + 56}px 0px -55% 0px` },
-    );
-    for (const [a] of JUMPS) {
-      const el = document.getElementById(`sec-${a}`);
-      if (el) io.observe(el);
-    }
-    // Short last sections never reach the upper band, so the page bottom means "last tab".
-    const onScroll = () => {
-      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) {
-        setActive(JUMPS[JUMPS.length - 1][0]);
-      }
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-
-    return () => {
-      io.disconnect();
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("scroll", onScroll);
-    };
-  }, [loaded]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -521,7 +479,7 @@ export function EditListingScreen({ id }: Props) {
   }
 
   // What a guest would miss. Updates as you type; each item jumps to its section.
-  const todo: Array<[anchor: string, text: string]> = [];
+  const todo: Array<[anchor: SectionKey, text: string]> = [];
   if (media.photos.length === 0) todo.push(["photos", "Add a photo"]);
   if (!form.verdict.trim()) todo.push(["basics", "Write the one-line verdict"]);
   if (!form.about.trim()) todo.push(["basics", "Write the About"]);
@@ -529,41 +487,131 @@ export function EditListingScreen({ id }: Props) {
   if (!form.timeSlot.trim() && !form.days.trim()) todo.push(["when", "Add the hours"]);
   if (!form.faqs.some((f) => f.q.trim() && f.a.trim())) todo.push(["faqs", "Add a few FAQs"]);
 
+  const blocks = parseBlocks(form.baseContent.blocks);
+  const venue = form.format === "venue";
+  const showSec = (k: SectionKey) => sel?.kind === "section" && sel.key === k;
+  const current = sel?.kind === "block" ? blocks[sel.index] : undefined;
+  const cover = media.photos.find((ph) => ph.isCover) ?? media.photos[0];
+
+  function setBlocks(next: StoryBlock[], to?: Sel) {
+    patchField("baseContent", { ...form!.baseContent, blocks: next });
+    if (to !== undefined) select(to);
+  }
+  function addBlock(block: StoryBlock) {
+    const at = sel?.kind === "block" ? sel.index + 1 : blocks.length;
+    setBlocks([...blocks.slice(0, at), structuredClone(block), ...blocks.slice(at)], { kind: "block", index: at });
+  }
+  const sectionLabel: Record<SectionKey, string> = {
+    photos: "Photos", basics: "Title & verdict", place: "Place", price: "Price", when: "Hours & group",
+    links: "Links", faqs: "FAQs", policy: "Booking & cancellation", tags: "Tags", booking: "Booking bar",
+  };
+  const editTitle = current ? BLOCK_LABEL[current.type] ?? current.type : sel?.kind === "section" ? sectionLabel[sel.key] : null;
+
   return (
-    <div className={styles.screen} ref={screenRef}>
-      {todo.length > 0 ? (
-        <section className={styles.todo} aria-label="Finish setting up">
-          <h2 className={`t-title-sm ${styles.sectionTitle}`}>Finish setting up</h2>
-          <ul className={styles.todoList}>
-            {todo.map(([anchor, text]) => (
-              <li key={text}>
-                <a href={`#sec-${anchor}`} className={styles.todoLink}>
-                  {text}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-      <p className={`t-body-sm ${styles.meta}`}>
-        Host: {hostLabel || "—"} ·{" "}
-        <Link href="/listings">Back to listings</Link>
-      </p>
-      <nav className={styles.jump} aria-label="Jump to section" ref={navRef}>
-        {JUMPS.map(([anchor, label]) => (
-          <a
-            key={anchor}
-            href={`#sec-${anchor}`}
-            className={`${styles.jumpLink} ${active === anchor ? styles.jumpLinkActive : ""}`}
-            aria-current={active === anchor ? "true" : undefined}
-            onClick={() => setActive(anchor)}
-          >
-            {label}
-          </a>
-        ))}
-      </nav>
-      <form className={styles.panel} onSubmit={onSave}>
-        <div id="sec-photos" className={styles.group}>
+    <div className={styles2.app}>
+      <header className={styles2.top}>
+        <Link href="/listings" className={styles2.back}>
+          ← Listings
+        </Link>
+        <div className={styles2.logo}>
+          discovr<span className={styles2.logoTag}>Admin</span>
+        </div>
+        <div className={styles2.crumb}>
+          / <span className={styles2.crumbTitle}>{form.title.trim() || "Untitled listing"}</span>
+          <span className={`${styles2.pill} ${form.status === "published" ? styles2.pillLive : ""}`}>{form.status}</span>
+        </div>
+        <div className={styles2.spacer} />
+        <span className={styles2.saveState} role="status">
+          {dirty ? "Unsaved changes" : "All changes saved"}
+        </span>
+        <button type="button" className={styles2.danger} onClick={onDelete} disabled={saving || deleting}>
+          {deleting ? "Deleting…" : "Delete"}
+        </button>
+        <Button type="submit" form="listing-form" variant="primary" disabled={saving || deleting}>
+          {saving ? "Saving…" : "Save changes"}
+        </Button>
+      </header>
+
+      <div className={styles2.main}>
+        <ListingLayers
+          sel={sel}
+          onSel={select}
+          blocks={blocks}
+          venue={venue}
+          onMove={(from, to) => setBlocks(moveBlock(blocks, from, to), { kind: "block", index: to })}
+          onDuplicate={(i) => setBlocks([...blocks.slice(0, i + 1), structuredClone(blocks[i]), ...blocks.slice(i + 1)], { kind: "block", index: i + 1 })}
+          onDelete={(i) => setBlocks(blocks.filter((_, j) => j !== i), null)}
+          onAdd={() => setTab("widgets")}
+          onStart={() =>
+            setBlocks(
+              seedBlocks({ title: form.title, about: form.about, included: form.included, notIncluded: form.notIncluded, carry: form.carry, faqs: form.faqs }),
+              null,
+            )
+          }
+        />
+
+        <section className={styles2.mid}>
+          <div className={styles2.tabs}>
+            <button type="button" className={`${styles2.tab} ${tab === "widgets" ? styles2.tabOn : ""}`} onClick={() => setTab("widgets")}>
+              Widgets
+            </button>
+            <button type="button" className={`${styles2.tab} ${tab === "edit" ? styles2.tabOn : ""}`} onClick={() => setTab("edit")}>
+              {editTitle ? `Edit · ${editTitle}` : "Edit"}
+            </button>
+          </div>
+          <div className={styles2.pane}>
+            {tab === "widgets" ? (
+              <div className={styles2.paneInner}>
+                <h3 className={styles2.paneTitle}>Widgets</h3>
+                <p className={styles2.note}>
+                  {blocks.length === 0
+                    ? "Start a custom story in Layers first, then add blocks here."
+                    : "Click one to add it to the story, after the block you picked."}
+                </p>
+                {blocks.length > 0 ? (
+                  <div className={styles2.widgetGrid}>
+                    {WIDGETS.map((w) => (
+                      <button key={w.name} type="button" className={styles2.widgetCard} onClick={() => addBlock(w.block)}>
+                        <span className={styles2.widgetName}>{w.name}</span>
+                        <span className={styles2.widgetHint}>Add to story</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {tab === "edit" && !sel ? (
+              <div className={styles2.paneInner}>
+                <h3 className={styles2.paneTitle}>Nothing selected</h3>
+                <p className={styles2.note}>Click any part of the phone, or a layer, to fill it in.</p>
+                {todo.length > 0 ? (
+                  <section className={styles.todo} aria-label="Finish setting up">
+                    <h2 className={`t-title-sm ${styles.sectionTitle}`}>Finish setting up</h2>
+                    <ul className={styles.todoList}>
+                      {todo.map(([anchor, text]) => (
+                        <li key={text}>
+                          <button type="button" className={styles.todoLink} onClick={() => select({ kind: "section", key: anchor })}>
+                            {text}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+              </div>
+            ) : null}
+
+            {tab === "edit" && current && sel?.kind === "block" ? (
+              <div className={styles2.paneInner}>
+                <h3 className={styles2.paneTitle}>{editTitle}</h3>
+                <BlockEditor block={current} onChange={(b) => setBlocks(blocks.map((x, j) => (j === sel.index ? b : x)))} />
+              </div>
+            ) : null}
+
+            <form id="listing-form" className={styles2.paneInner} onSubmit={onSave} hidden={tab !== "edit" || sel?.kind !== "section"}>
+              {sel?.kind === "section" ? <h3 className={styles2.paneTitle}>{editTitle}</h3> : null}
+        <div id="sec-photos" className={styles.group} hidden={!showSec("photos")}>
         <ListingPhotos
           experienceId={id}
           title={form.title.trim()}
@@ -572,27 +620,7 @@ export function EditListingScreen({ id }: Props) {
           onSaved={(row) => setMedia(listingMedia(row))}
         />
         </div>
-        <div id="sec-story" className={`${styles.group} ${styles.wide}`}>
-        <StoryBuilder
-          blocks={form.baseContent.blocks}
-          onChange={(blocks) => patchField("baseContent", { ...form.baseContent, blocks })}
-          seed={{
-            title: form.title,
-            about: form.about,
-            included: form.included,
-            notIncluded: form.notIncluded,
-            carry: form.carry,
-            faqs: form.faqs,
-          }}
-          verdict={form.verdict}
-          venue={form.format === "venue"}
-          hidePhotos={form.baseContent.hideStoryPhotos === true}
-          onHidePhotosChange={(hideStoryPhotos) =>
-            patchField("baseContent", { ...form.baseContent, hideStoryPhotos: hideStoryPhotos || undefined })
-          }
-        />
-        </div>
-        <div id="sec-basics" className={styles.section}>
+        <div id="sec-basics" className={styles.section} hidden={!showSec("basics")}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Basics</h2>
           <div className={styles.grid2}>
             <Input
@@ -699,7 +727,7 @@ export function EditListingScreen({ id }: Props) {
           </div>
         </div>
 
-        <div id="sec-place" className={styles.section}>
+        <div id="sec-place" className={styles.section} hidden={!showSec("place")}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Place</h2>
           <div className={styles.grid2}>
             <Input
@@ -742,7 +770,7 @@ export function EditListingScreen({ id }: Props) {
           </div>
         </div>
 
-        <div id="sec-price" className={styles.section}>
+        <div id="sec-price" className={styles.section} hidden={!showSec("price")}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Price story</h2>
           <div className={styles.grid2}>
             <div className={styles.full}>
@@ -788,7 +816,7 @@ export function EditListingScreen({ id }: Props) {
           </div>
         </div>
 
-        <div id="sec-when" className={styles.section}>
+        <div id="sec-when" className={styles.section} hidden={!showSec("when")}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>When</h2>
           <div className={styles.grid2}>
             <Input
@@ -862,7 +890,7 @@ export function EditListingScreen({ id }: Props) {
           </div>
         </div>
 
-        <div id="sec-links" className={styles.section}>
+        <div id="sec-links" className={styles.section} hidden={!showSec("links")}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Links</h2>
           <p className={`t-body-sm ${styles.hint}`}>
             Paste maps, menu, WhatsApp, or Instagram URLs from the sheet.
@@ -895,7 +923,7 @@ export function EditListingScreen({ id }: Props) {
           </div>
         </div>
 
-        <div id="sec-booking" className={styles.section}>
+        <div id="sec-booking" className={styles.section} hidden={!showSec("booking")}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Booking</h2>
           <fieldset className={styles.choice}>
             <legend className={styles.textareaLabel}>How guests book</legend>
@@ -934,7 +962,7 @@ export function EditListingScreen({ id }: Props) {
           )}
         </div>
 
-        <div id="sec-faqs" className={styles.section}>
+        <div id="sec-faqs" className={styles.section} hidden={!showSec("faqs")}>
           <div className={styles.sectionHead}>
             <h2 className={`t-title-sm ${styles.sectionTitle}`}>FAQs</h2>
             <button type="button" className={styles.addBtn} onClick={addFaq}>
@@ -987,7 +1015,7 @@ export function EditListingScreen({ id }: Props) {
           )}
         </div>
 
-        <div id="sec-policy" className={styles.section}>
+        <div id="sec-policy" className={styles.section} hidden={!showSec("policy")}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Policy</h2>
           <div className={styles.grid2}>
             <div className={`${styles.textareaField} ${styles.full}`}>
@@ -1130,7 +1158,7 @@ export function EditListingScreen({ id }: Props) {
           />
         </div>
 
-        <div id="sec-tags" className={styles.section}>
+        <div id="sec-tags" className={styles.section} hidden={!showSec("tags")}>
           <div className={styles.sectionHead}>
             <h2 className={`t-title-sm ${styles.sectionTitle}`}>Tags</h2>
           </div>
@@ -1171,43 +1199,38 @@ export function EditListingScreen({ id }: Props) {
           </div>
         </div>
 
-        <div className={styles.actions}>
-          <Button type="submit" variant="primary" disabled={saving || deleting}>
-            {saving ? "Saving…" : "Save changes"}
-          </Button>
-          <Button href="/listings" variant="secondary">
-            Cancel
-          </Button>
-          <span className={`t-body-sm ${styles.message}`} role="status">
-            {dirty ? "Unsaved changes" : "All changes saved"}
-          </span>
-          <button
-            type="button"
-            className={styles.danger}
-            onClick={onDelete}
-            disabled={saving || deleting}
-          >
-            {deleting ? "Deleting…" : "Delete listing"}
-          </button>
-        </div>
-      </form>
+            </form>
+          </div>
+        </section>
+
+        <section className={styles2.stage} aria-label="Mobile preview">
+          <div className={styles2.colHead}>
+            <h2>Mobile preview</h2>
+            <p>discovr.in/experiences/{form.slug || "untitled"}</p>
+          </div>
+          <div className={styles2.stageBody}>
+            <ListingPhone
+              title={form.title}
+              verdict={form.verdict}
+              hostLabel={hostLabel}
+              coverUrl={cover?.src}
+              priceFromInr={Number(form.priceFromInr) || 0}
+              priceUnit={form.priceUnit}
+              place={[form.placeName, form.placeNeighborhood].filter((x) => x.trim()).join(", ")}
+              hours={form.timeSlot || form.days}
+              hasInstagram={Boolean(form.instagramUrl.trim())}
+              bookLabel={form.bookVia === "link" ? "Book" : "Call to book"}
+              blocks={blocks}
+              sel={sel}
+              onSel={select}
+            />
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
 
-const JUMPS = [
-  ["photos", "Photos"],
-  ["story", "Story"],
-  ["basics", "Basics"],
-  ["place", "Place"],
-  ["price", "Price"],
-  ["when", "When"],
-  ["links", "Links"],
-  ["booking", "Booking"],
-  ["faqs", "FAQs"],
-  ["policy", "Policy"],
-  ["tags", "Tags"],
-] as const;
 
 type LineListProps = {
   title: string;
