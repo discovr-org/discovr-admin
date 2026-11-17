@@ -1,135 +1,163 @@
 "use client";
 
 import { useState } from "react";
+import { PART_META, type FixedId, type PartId, type SectionState } from "../utils/pageLayout";
 import { BLOCK_LABEL, blockLabel, type StoryBlock } from "../utils/storyBlocks";
 import styles from "../styles/ListingEditor.module.css";
 
-export type SectionKey = "photos" | "basics" | "place" | "price" | "when" | "links" | "faqs" | "policy" | "tags" | "booking";
-export type Sel = { kind: "section"; key: SectionKey } | { kind: "block"; index: number } | null;
-
-const GROUPS: Array<{ title: string; items: Array<[SectionKey, string, string, string]> }> = [
-  {
-    title: "Page",
-    items: [
-      ["photos", "Photos", "Carousel and menu pages", "▣"],
-      ["basics", "Title & verdict", "Name, status, about", "T"],
-      ["place", "Place", "Address and map", "⌖"],
-      ["price", "Price", "From price and note", "₹"],
-      ["when", "Hours & group", "When, duration, who", "◷"],
-      ["links", "Links", "Maps, Instagram, menu", "↗"],
-    ],
-  },
-];
-const MORE: Array<[SectionKey, string, string, string]> = [
-  ["faqs", "FAQs", "Questions and answers", "?"],
-  ["policy", "Booking & cancellation", "Policy and notes", "≡"],
-  ["tags", "Tags", "Search and card tags", "#"],
-];
-const PINNED: [SectionKey, string, string, string] = ["booking", "Booking bar", "Call or link button", "▭"];
+export type Sel = { kind: "part"; id: PartId } | { kind: "block"; index: number } | null;
 
 type Props = {
   sel: Sel;
   onSel: (s: Sel) => void;
   blocks: StoryBlock[];
+  order: SectionState[];
+  fixed: Record<"more" | "booking", boolean>;
   venue: boolean;
-  onMove: (from: number, to: number) => void;
+  onMoveSection: (from: number, to: number) => void;
+  onToggleSection: (id: SectionState["id"]) => void;
+  onToggleFixed: (id: Exclude<FixedId, "gallery">) => void;
+  onMoveBlock: (from: number, to: number) => void;
+  onToggleBlock: (i: number) => void;
   onDuplicate: (i: number) => void;
   onDelete: (i: number) => void;
   onAdd: () => void;
   onStart: () => void;
+  /** A widget card was dropped here; `at` is the block index to insert before. */
+  onDropWidget: (widget: number, at: number) => void;
 };
 
-/** Left column. Page sections are fixed; story blocks can be dragged, copied, deleted. */
-export function ListingLayers({ sel, onSel, blocks, venue, onMove, onDuplicate, onDelete, onAdd, onStart }: Props) {
-  const [dragFrom, setDragFrom] = useState<number | null>(null);
-  const [over, setOver] = useState<number | null>(null);
-  const isSec = (k: SectionKey) => sel?.kind === "section" && sel.key === k;
+const EyeBtn = ({ on, onClick, what }: { on: boolean; onClick: () => void; what: string }) => (
+  <button type="button" className={styles.iconBtn} aria-label={`${on ? "Hide" : "Show"} ${what}`} aria-pressed={!on} onClick={onClick}>
+    {on ? "◉" : "○"}
+  </button>
+);
 
-  const section = ([key, name, hint, glyph]: [SectionKey, string, string, string]) => (
-    <li key={key} className={`${styles.layer} ${isSec(key) ? styles.layerOn : ""}`}>
-      <button type="button" className={styles.layerMain} aria-pressed={isSec(key)} onClick={() => onSel({ kind: "section", key })}>
-        <span className={styles.layerIc} aria-hidden="true">
-          {glyph}
-        </span>
-        <span className={styles.layerText}>
-          <span className={styles.layerName}>{name}</span>
-          <span className={styles.layerType}>{hint}</span>
-        </span>
-      </button>
-    </li>
-  );
+/** Left column: the page top to bottom. Sections and story blocks drag to reorder; the eye hides one on the guest page. */
+export function ListingLayers(p: Props) {
+  const [dragSec, setDragSec] = useState<number | null>(null);
+  const [dragBlock, setDragBlock] = useState<number | null>(null);
+  const [over, setOver] = useState<string | null>(null);
+  const isPart = (id: PartId) => p.sel?.kind === "part" && p.sel.id === id;
+  const clear = () => {
+    setDragSec(null);
+    setDragBlock(null);
+    setOver(null);
+  };
 
-  return (
-    <aside className={styles.colWrap} aria-label="Layers">
-      <div className={styles.colHead}>
-        <h2>Layers</h2>
-        <p>{blocks.length} story {blocks.length === 1 ? "block" : "blocks"}</p>
-      </div>
-      <div className={styles.scroll}>
-        {GROUPS.map((g) => (
-          <ul key={g.title} className={styles.layers}>
-            {g.items.map(section)}
-          </ul>
-        ))}
+  const partRow = (id: PartId, opts: { show?: boolean; onToggle?: () => void; locked?: boolean; drag?: number; note?: string }) => {
+    const m = PART_META[id];
+    const hidden = opts.show === false;
+    return (
+      <li
+        key={id}
+        className={`${styles.layer} ${isPart(id) ? styles.layerOn : ""} ${hidden ? styles.layerHidden : ""} ${over === `s${id}` && dragSec !== null ? styles.layerOver : ""}`}
+        draggable={opts.drag !== undefined}
+        onDragStart={(e) => {
+          if (opts.drag === undefined) return;
+          e.dataTransfer.effectAllowed = "move";
+          setDragSec(opts.drag);
+        }}
+        onDragOver={(e) => {
+          if (dragSec === null || opts.drag === undefined) return;
+          e.preventDefault();
+          setOver(`s${id}`);
+        }}
+        onDrop={() => {
+          if (dragSec !== null && opts.drag !== undefined) p.onMoveSection(dragSec, opts.drag);
+          clear();
+        }}
+        onDragEnd={clear}
+      >
+        <button type="button" className={`${styles.layerMain} ${opts.drag !== undefined ? styles.layerDrag : ""}`} aria-pressed={isPart(id)} onClick={() => p.onSel({ kind: "part", id })}>
+          <span className={styles.layerIc} aria-hidden="true">
+            {m.glyph}
+          </span>
+          <span className={styles.layerText}>
+            <span className={styles.layerName}>{m.label}</span>
+            <span className={styles.layerType}>
+              {m.hint}
+              {opts.locked ? <span className={styles.chip}>fixed</span> : null}
+              {hidden ? <span className={styles.chip}>hidden</span> : null}
+            </span>
+          </span>
+        </button>
+        {opts.onToggle ? (
+          <span className={`${styles.layerActs} ${hidden ? styles.layerActsShow : ""}`}>
+            <EyeBtn on={!hidden} onClick={opts.onToggle} what={m.label} />
+          </span>
+        ) : null}
+      </li>
+    );
+  };
 
-        <div className={styles.sub}>Story</div>
-        {blocks.length === 0 ? (
-          <div className={styles.paneInner}>
-            <p className={styles.note}>
-              {venue
-                ? "Places build the story from the fields, so a custom story isn't used."
-                : "The story is built from the fields. Start a custom story to reorder and edit it."}
-            </p>
-            {venue ? null : (
-              <button type="button" className={styles.addBtn} onClick={onStart}>
-                Start a custom story
-              </button>
-            )}
-          </div>
-        ) : (
-          <ul className={styles.layers} onDragLeave={() => setOver(null)}>
-            {blocks.map((b, i) => {
-              const on = sel?.kind === "block" && sel.index === i;
+  const story = (
+    <li key="story" className={styles.storyNest}>
+      {p.blocks.length === 0 ? (
+        <div className={styles.paneInner}>
+          <p className={styles.note}>
+            {p.venue
+              ? "Places build the story from the fields, so custom blocks aren't used."
+              : "The story is built from the fields. Start a custom story to reorder it and add blocks."}
+          </p>
+          {p.venue ? null : (
+            <button type="button" className={styles.addBtn} onClick={p.onStart}>
+              Start a custom story
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
+          <ul className={styles.layers}>
+            {p.blocks.map((b, i) => {
+              const on = p.sel?.kind === "block" && p.sel.index === i;
+              const hidden = b.show === false;
               return (
                 <li
                   key={i}
-                  className={`${styles.layer} ${on ? styles.layerOn : ""} ${over === i && dragFrom !== i ? styles.layerOver : ""}`}
+                  className={`${styles.layer} ${on ? styles.layerOn : ""} ${hidden ? styles.layerHidden : ""} ${over === `b${i}` ? styles.layerOver : ""}`}
                   draggable
-                  onDragStart={() => setDragFrom(i)}
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = "move";
+                    setDragBlock(i);
+                  }}
                   onDragOver={(e) => {
                     e.preventDefault();
-                    setOver(i);
+                    setOver(`b${i}`);
                   }}
-                  onDrop={() => {
-                    if (dragFrom !== null) onMove(dragFrom, i);
-                    setDragFrom(null);
-                    setOver(null);
+                  onDrop={(e) => {
+                    const w = e.dataTransfer.getData("text/widget");
+                    if (w) p.onDropWidget(Number(w), i);
+                    else if (dragBlock !== null) p.onMoveBlock(dragBlock, i);
+                    clear();
                   }}
-                  onDragEnd={() => {
-                    setDragFrom(null);
-                    setOver(null);
-                  }}
+                  onDragEnd={clear}
                 >
-                  <button type="button" className={`${styles.layerMain} ${styles.layerDrag}`} aria-pressed={on} onClick={() => onSel({ kind: "block", index: i })}>
+                  <button type="button" className={`${styles.layerMain} ${styles.layerDrag}`} aria-pressed={on} onClick={() => p.onSel({ kind: "block", index: i })}>
                     <span className={styles.layerIc} aria-hidden="true">
                       ⋮⋮
                     </span>
                     <span className={styles.layerText}>
                       <span className={styles.layerName}>{blockLabel(b)}</span>
-                      <span className={styles.layerType}>{BLOCK_LABEL[b.type] ?? b.type}</span>
+                      <span className={styles.layerType}>
+                        {BLOCK_LABEL[b.type] ?? b.type}
+                        {b.size === "half" ? <span className={styles.chip}>½ width</span> : null}
+                        {hidden ? <span className={styles.chip}>hidden</span> : null}
+                      </span>
                     </span>
                   </button>
-                  <span className={styles.layerActs}>
-                    <button type="button" className={styles.iconBtn} aria-label="Move up" disabled={i === 0} onClick={() => onMove(i, i - 1)}>
+                  <span className={`${styles.layerActs} ${hidden ? styles.layerActsShow : ""}`}>
+                    <EyeBtn on={!hidden} onClick={() => p.onToggleBlock(i)} what={blockLabel(b)} />
+                    <button type="button" className={styles.iconBtn} aria-label="Move up" disabled={i === 0} onClick={() => p.onMoveBlock(i, i - 1)}>
                       ↑
                     </button>
-                    <button type="button" className={styles.iconBtn} aria-label="Move down" disabled={i === blocks.length - 1} onClick={() => onMove(i, i + 1)}>
+                    <button type="button" className={styles.iconBtn} aria-label="Move down" disabled={i === p.blocks.length - 1} onClick={() => p.onMoveBlock(i, i + 1)}>
                       ↓
                     </button>
-                    <button type="button" className={styles.iconBtn} aria-label="Duplicate" onClick={() => onDuplicate(i)}>
+                    <button type="button" className={styles.iconBtn} aria-label="Duplicate" onClick={() => p.onDuplicate(i)}>
                       ⧉
                     </button>
-                    <button type="button" className={styles.iconBtn} aria-label="Delete" onClick={() => onDelete(i)}>
+                    <button type="button" className={styles.iconBtn} aria-label="Delete" onClick={() => p.onDelete(i)}>
                       ×
                     </button>
                   </span>
@@ -137,20 +165,54 @@ export function ListingLayers({ sel, onSel, blocks, venue, onMove, onDuplicate, 
               );
             })}
           </ul>
-        )}
-        {blocks.length > 0 ? (
-          <button type="button" className={styles.addBtn} onClick={onAdd} style={{ marginTop: "var(--space-2)" }}>
-            + Add a block
-          </button>
-        ) : null}
+          <div
+            className={styles.dropEnd}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              const w = e.dataTransfer.getData("text/widget");
+              if (w) p.onDropWidget(Number(w), p.blocks.length);
+              clear();
+            }}
+          >
+            <button type="button" className={styles.addBtn} onClick={p.onAdd}>
+              + Add a block
+            </button>
+          </div>
+        </>
+      )}
+    </li>
+  );
 
-        <div className={styles.sub}>More</div>
-        <ul className={styles.layers}>{MORE.map(section)}</ul>
+  const hiddenCount = p.order.filter((s) => !s.show).length + (p.fixed.more ? 0 : 1) + (p.fixed.booking ? 0 : 1) + p.blocks.filter((b) => b.show === false).length;
+
+  return (
+    <aside className={styles.colWrap} aria-label="Layers">
+      <div className={styles.colHead}>
+        <h2>Layers</h2>
+        <p>
+          {p.order.length + 3} parts · {p.blocks.length} story {p.blocks.length === 1 ? "block" : "blocks"}
+          {hiddenCount ? ` · ${hiddenCount} hidden` : ""}
+        </p>
+      </div>
+      <div className={styles.scroll}>
+        <ul className={styles.layers}>
+          {partRow("gallery", { locked: true })}
+          {p.order.flatMap((s, i) => {
+            const row = partRow(s.id, { show: s.show, onToggle: () => p.onToggleSection(s.id), drag: i });
+            return s.id === "about" ? [row, story] : [row];
+          })}
+          {partRow("more", { show: p.fixed.more, onToggle: () => p.onToggleFixed("more") })}
+        </ul>
+        <div className={styles.sub}>Other fields</div>
+        <ul className={styles.layers}>
+          {partRow("faqs", {})}
+          {partRow("tags", {})}
+        </ul>
         <div className={styles.sub}>Pinned</div>
-        <ul className={styles.layers}>{section(PINNED)}</ul>
+        <ul className={styles.layers}>{partRow("booking", { show: p.fixed.booking, onToggle: () => p.onToggleFixed("booking") })}</ul>
       </div>
       <div className={styles.hintFoot}>
-        <b>Drag</b> story rows to reorder, or use the arrows. Click anything in the phone to edit it.
+        <b>Drag</b> rows to reorder. The circle hides a part on the guest page. Click anything in the phone to edit it.
       </div>
     </aside>
   );

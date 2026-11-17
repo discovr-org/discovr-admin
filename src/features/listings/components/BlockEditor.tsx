@@ -174,6 +174,36 @@ export function BlockEditor({ block, onChange }: Props) {
           </button>
         </>
       );
+    case "stats":
+      return (
+        <>
+          {block.items.map((t, i) => (
+            <Row key={i} label={`Tile ${i + 1}`} onRemove={() => onChange({ ...block, items: without(block.items, i) })}>
+              <Input label="Label" value={t.label} onChange={(e) => onChange({ ...block, items: replace(block.items, i, { ...t, label: e.target.value }) })} />
+              <Input label="Value" value={t.value} onChange={(e) => onChange({ ...block, items: replace(block.items, i, { ...t, value: e.target.value }) })} />
+            </Row>
+          ))}
+          <button type="button" className={styles.addBtn} onClick={() => onChange({ ...block, items: [...block.items, { label: "", value: "" }] })}>
+            Add tile
+          </button>
+        </>
+      );
+    case "packages":
+      return (
+        <>
+          <Input label="Title (optional)" value={block.title ?? ""} onChange={(e) => onChange({ ...block, title: e.target.value || undefined })} />
+          {block.items.map((t, i) => (
+            <Row key={i} label={`Package ${i + 1}`} onRemove={() => onChange({ ...block, items: without(block.items, i) })}>
+              <Input label="Name" value={t.name} onChange={(e) => onChange({ ...block, items: replace(block.items, i, { ...t, name: e.target.value }) })} />
+              <Input label="Detail (optional)" value={t.detail ?? ""} onChange={(e) => onChange({ ...block, items: replace(block.items, i, { ...t, detail: e.target.value || undefined }) })} />
+              <Input label="Price (₹)" inputMode="numeric" value={t.price} onChange={(e) => onChange({ ...block, items: replace(block.items, i, { ...t, price: e.target.value }) })} />
+            </Row>
+          ))}
+          <button type="button" className={styles.addBtn} onClick={() => onChange({ ...block, items: [...block.items, { name: "", price: "" }] })}>
+            Add package
+          </button>
+        </>
+      );
     default:
       return <p className={styles.note}>This block type can&apos;t be edited here. It stays as it is.</p>;
   }

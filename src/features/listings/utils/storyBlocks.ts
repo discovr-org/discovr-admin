@@ -1,5 +1,9 @@
 /** Same shapes the guest app renders in the About story (`discovr-frontend/src/types/experience.ts`). */
-export type StoryBlock =
+/** `show: false` hides the block on the guest page. Two `half` blocks in a row sit side by side. */
+export type BlockFlags = { show?: boolean; size?: "full" | "half" };
+
+export type StoryBlock = BlockFlags &
+  (
   | { type: "heading"; level: "section" | "small"; text: string }
   | { type: "line" }
   | { type: "quote"; text: string; plain?: boolean; cite?: string }
@@ -9,7 +13,10 @@ export type StoryBlock =
   | { type: "steps"; items: Array<{ marker: string; title: string; caption?: string }> }
   | { type: "callout"; tone: "heads_up" | "tip"; title: string; paragraphs: string[] }
   | { type: "checklist"; title: string; items: string[] }
-  | { type: "faq"; items: Array<{ q: string; a: string }> };
+  | { type: "faq"; items: Array<{ q: string; a: string }> }
+  | { type: "stats"; items: Array<{ label: string; value: string }> }
+  | { type: "packages"; title?: string; items: Array<{ name: string; detail?: string; price: string }> }
+  );
 
 export type BlockType = StoryBlock["type"];
 
@@ -24,7 +31,12 @@ export const BLOCK_LABEL: Record<BlockType, string> = {
   callout: "Callout",
   checklist: "Checklist",
   faq: "FAQ",
+  stats: "Stat tiles",
+  packages: "Packages & prices",
 };
+
+/** Blocks that can sit half width next to another half block. */
+export const HALF_OK: BlockType[] = ["callout", "quote", "photo", "checklist", "stats", "text"];
 
 /** Blocks an editor can add. Click one to put it in the story. */
 export const WIDGETS: Array<{ name: string; block: StoryBlock }> = [
@@ -52,6 +64,22 @@ export const WIDGETS: Array<{ name: string; block: StoryBlock }> = [
     block: { type: "callout", tone: "heads_up", title: "Heads up", paragraphs: ["Say what guests should know."] },
   },
   { name: "FAQ", block: { type: "faq", items: [{ q: "Question?", a: "Answer." }] } },
+  {
+    name: "Age & fitness",
+    block: { type: "stats", items: [{ label: "Age", value: "10+" }, { label: "Fitness level", value: "Easy - Moderate" }] },
+  },
+  {
+    name: "Packages & prices",
+    block: { type: "packages", title: "Packages", items: [{ name: "Beginner", detail: "30 min briefing + 30 min ride", price: "3250" }] },
+  },
+  {
+    name: "Health advisory",
+    block: { type: "callout", tone: "heads_up", title: "Health advisory", paragraphs: ["Tell the host about any medical condition before booking."] },
+  },
+  {
+    name: "Good to know",
+    block: { type: "callout", tone: "tip", title: "Good to know", paragraphs: ["Lockers and showers on site."], size: "half" },
+  },
   { name: "Divider", block: { type: "line" } },
 ];
 
@@ -69,6 +97,10 @@ export function blockLabel(b: StoryBlock): string {
     case "checklist":
     case "callout":
       return b.title?.trim() || known;
+    case "packages":
+      return b.title?.trim() || known;
+    case "stats":
+      return b.items.map((t) => t.label).filter(Boolean).join(" · ") || known;
     case "heading":
     case "quote":
       return b.text?.trim() || known;
@@ -104,6 +136,10 @@ export function cleanBlocks(blocks: StoryBlock[]): StoryBlock[] {
         return { ...b, paragraphs: lines(b.paragraphs) };
       case "steps":
         return { ...b, items: b.items.filter((s) => s.title.trim()) };
+      case "stats":
+        return { ...b, items: b.items.filter((t) => t.label.trim() || t.value.trim()) };
+      case "packages":
+        return { ...b, items: b.items.filter((t) => t.name.trim()) };
       case "faq":
         return { ...b, items: b.items.filter((f) => f.q.trim() && f.a.trim()) };
       default:

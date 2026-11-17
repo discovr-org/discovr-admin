@@ -181,6 +181,7 @@
 }
 
 .layer {
+  position: relative;
   display: flex;
   align-items: center;
   border-radius: var(--radius-sm);
@@ -270,7 +271,12 @@
 
 .layerActs {
   display: none;
-  flex: none;
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-sm);
 }
 
 .layer:hover .layerActs,
@@ -797,4 +803,250 @@
 .pvMuted {
   color: var(--ink-subtle);
   font-size: 13px;
+}
+
+/* ---------- hide, nest, drop ---------- */
+.layerHidden .layerName,
+.layerHidden .layerIc {
+  opacity: 0.45;
+}
+
+.layerActsShow {
+  display: flex;
+}
+
+.storyNest {
+  list-style: none;
+  margin: 0 0 var(--space-2) var(--space-4);
+  padding-left: var(--space-2);
+  border-left: var(--border-hairline) solid var(--line-subtle);
+}
+
+.dropEnd {
+  padding: var(--space-2) 0;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.seg button {
+  min-height: var(--size-control-sm);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-muted);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.seg button:focus-visible {
+  outline: var(--border-focus) solid var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.seg .segOn {
+  background: var(--surface-overlay);
+  color: var(--ink-primary);
+}
+
+.ibtn {
+  min-width: var(--size-control-sm);
+  min-height: var(--size-control-sm);
+  border: var(--border-hairline) solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--ink-primary);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.ibtn:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: default;
+}
+
+.ibtn:focus-visible {
+  outline: var(--border-focus) solid var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.search {
+  width: 100%;
+  min-height: var(--size-control-md);
+  padding: 0 var(--space-3);
+  border: var(--border-hairline) solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--ink-primary);
+  font: inherit;
+  font-size: 16px;
+}
+
+.search:focus-visible {
+  outline: var(--border-focus) solid var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.group {
+  margin: var(--space-3) 0 0;
+  color: var(--ink-subtle);
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.widgetOn {
+  color: var(--state-positive);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* mini preview inside a widget card */
+.wPrev {
+  position: relative;
+  height: 96px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--surface-canvas);
+  pointer-events: none;
+}
+
+.wPrev::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 36px;
+  background: linear-gradient(to top, var(--surface-canvas), transparent);
+}
+
+.wPrevInner {
+  width: 340px;
+  padding: var(--space-3);
+  transform: scale(0.6);
+  transform-origin: 0 0;
+}
+
+/* ---------- phone: arrange mode, pairs, tiles ---------- */
+.pvJig {
+  animation: jig 0.26s ease-in-out infinite alternate;
+  cursor: grab;
+}
+
+@keyframes jig {
+  from {
+    transform: rotate(-0.4deg);
+  }
+  to {
+    transform: rotate(0.4deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pvJig {
+    animation: none;
+    outline: var(--border-hairline) dashed var(--line-strong);
+  }
+}
+
+.pvDone {
+  min-height: var(--size-control-sm);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--brand-primary);
+  color: var(--brand-primary-on);
+  font: 600 14px var(--font-sans);
+  cursor: pointer;
+}
+
+.pvPair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.pvTile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  font-size: 14px;
+}
+
+.pvTileLabel {
+  color: var(--ink-muted);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pvPkg {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.pvAbout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.pvVerdictBox {
+  margin: 0;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.stageHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.ibtnOn {
+  background: var(--surface-overlay);
+  border-color: var(--ink-muted);
+}
+
+.chip {
+  margin-left: var(--space-2);
+  padding: 0 5px;
+  border: var(--border-hairline) solid var(--line-subtle);
+  border-radius: 6px;
+  color: var(--ink-muted);
+  font-size: 10px;
+  line-height: 15px;
+  font-weight: 600;
+}
+
+.top .save {
+  min-height: var(--size-control-md);
+}
+
+.layerActs .iconBtn {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
 }

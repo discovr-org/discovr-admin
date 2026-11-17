@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { patchExperienceLocal } from "@/shared/utils/useCatalog";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/shared/components/Button";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { Input } from "@/shared/components/Input";
@@ -22,11 +22,13 @@ import {
 import { useToast } from "@/shared/components/Toast";
 import styles from "../styles/EditListingScreen.module.css";
 import { ListingPhotos } from "./ListingPhotos";
-import { BLOCK_LABEL, WIDGETS, cleanBlocks, moveBlock, parseBlocks, seedBlocks, type StoryBlock } from "../utils/storyBlocks";
+import { BLOCK_LABEL, HALF_OK, WIDGETS, cleanBlocks, moveBlock, parseBlocks, seedBlocks, type StoryBlock } from "../utils/storyBlocks";
+import { FORMS, PART_META, readFixedShown, readSections, writeSections, type PartId, type SectionState } from "../utils/pageLayout";
 import styles2 from "../styles/ListingEditor.module.css";
 import { BlockEditor } from "./BlockEditor";
-import { ListingLayers, type SectionKey, type Sel } from "./ListingLayers";
+import { ListingLayers, type Sel } from "./ListingLayers";
 import { ListingPhone } from "./ListingPhone";
+import { WidgetLibrary } from "./WidgetLibrary";
 
 type Props = { id: string };
 
@@ -241,12 +243,62 @@ export function EditListingScreen({ id }: Props) {
 
   const [sel, setSel] = useState<Sel>(null);
   const [tab, setTab] = useState<"widgets" | "edit">("edit");
+  const [arranging, setArranging] = useState(false);
+  type Snap = { blocks: unknown; sections: unknown };
+  const [past, setPast] = useState<Snap[]>([]);
+  const [future, setFuture] = useState<Snap[]>([]);
+  const typingTimer = useRef(0);
 
   function select(next: Sel) {
     setSel(next);
     setTab("edit");
   }
 
+  // Undo / redo cover the page layout: story blocks, order, and what is shown.
+  const snapOf = (f: FormState): Snap => ({ blocks: f.baseContent.blocks, sections: f.baseContent.sections });
+  function record(f: FormState, coalesce: boolean) {
+    // Typing in one block is one undo step: edits within 700 ms of the last one share a snapshot.
+    const typing = typingTimer.current !== 0;
+    window.clearTimeout(typingTimer.current);
+    typingTimer.current = coalesce ? window.setTimeout(() => (typingTimer.current = 0), 700) : 0;
+    if (coalesce && typing) return;
+    setPast((p) => [...p.slice(-119), snapOf(f)]);
+    setFuture([]);
+  }
+  function restore(snap: Snap) {
+    setForm((prev) => (prev ? { ...prev, baseContent: { ...prev.baseContent, blocks: snap.blocks, sections: snap.sections } } : prev));
+    setDirty(true);
+    setSel(null);
+  }
+  function undo() {
+    if (!form || past.length === 0) return;
+    setFuture((f) => [snapOf(form), ...f]);
+    setPast(past.slice(0, -1));
+    restore(past[past.length - 1]);
+  }
+  function redo() {
+    if (!form || future.length === 0) return;
+    setPast((p) => [...p, snapOf(form)]);
+    setFuture(future.slice(1));
+    restore(future[0]);
+  }
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const typing = (e.target as HTMLElement | null)?.closest("input, textarea, select, [contenteditable]");
+      if (e.key === "Escape") {
+        if (arranging) setArranging(false);
+        else if (!typing) setSel(null);
+        return;
+      }
+      if (typing || !(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z") return;
+      e.preventDefault();
+      if (e.shiftKey) redo();
+      else undo();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   useEffect(() => {
     if (!dirty) return;
@@ -479,33 +531,68 @@ export function EditListingScreen({ id }: Props) {
   }
 
   // What a guest would miss. Updates as you type; each item jumps to its section.
-  const todo: Array<[anchor: SectionKey, text: string]> = [];
-  if (media.photos.length === 0) todo.push(["photos", "Add a photo"]);
-  if (!form.verdict.trim()) todo.push(["basics", "Write the one-line verdict"]);
-  if (!form.about.trim()) todo.push(["basics", "Write the About"]);
-  if (Number(form.priceFromInr) <= 0) todo.push(["price", "Set the price (or leave it for ask-the-host)"]);
-  if (!form.timeSlot.trim() && !form.days.trim()) todo.push(["when", "Add the hours"]);
+  const todo: Array<[anchor: PartId, text: string]> = [];
+  if (media.photos.length === 0) todo.push(["gallery", "Add a photo"]);
+  if (!form.verdict.trim()) todo.push(["verdict", "Write the one-line verdict"]);
+  if (!form.about.trim()) todo.push(["about", "Write the About"]);
+  if (Number(form.priceFromInr) <= 0) todo.push(["info", "Set the price (or leave it for ask-the-host)"]);
+  if (!form.timeSlot.trim() && !form.days.trim()) todo.push(["info", "Add the hours"]);
   if (!form.faqs.some((f) => f.q.trim() && f.a.trim())) todo.push(["faqs", "Add a few FAQs"]);
 
   const blocks = parseBlocks(form.baseContent.blocks);
+  const order = readSections(form.baseContent.sections);
+  const fixed = { more: readFixedShown(form.baseContent.sections, "more"), booking: readFixedShown(form.baseContent.sections, "booking") };
   const venue = form.format === "venue";
-  const showSec = (k: SectionKey) => sel?.kind === "section" && sel.key === k;
+  const selPart = sel?.kind === "part" ? sel.id : null;
+  const showSec = (k: (typeof FORMS)[PartId][number]) => selPart !== null && FORMS[selPart].includes(k);
   const current = sel?.kind === "block" ? blocks[sel.index] : undefined;
   const cover = media.photos.find((ph) => ph.isCover) ?? media.photos[0];
 
-  function setBlocks(next: StoryBlock[], to?: Sel) {
-    patchField("baseContent", { ...form!.baseContent, blocks: next });
+  /** One place that writes the layout, so every change is undoable. */
+  function applyLayout(
+    patch: { blocks?: StoryBlock[]; order?: SectionState[]; fixed?: Partial<typeof fixed> },
+    to?: Sel,
+    coalesce = false,
+  ) {
+    const f = form!;
+    record(f, coalesce);
+    const nextOrder = patch.order ?? order;
+    const nextFixed = { ...fixed, ...patch.fixed };
+    patchField("baseContent", {
+      ...f.baseContent,
+      ...(patch.blocks ? { blocks: patch.blocks } : {}),
+      sections: writeSections(nextOrder, nextFixed),
+    });
     if (to !== undefined) select(to);
   }
-  function addBlock(block: StoryBlock) {
-    const at = sel?.kind === "block" ? sel.index + 1 : blocks.length;
-    setBlocks([...blocks.slice(0, at), structuredClone(block), ...blocks.slice(at)], { kind: "block", index: at });
-  }
-  const sectionLabel: Record<SectionKey, string> = {
-    photos: "Photos", basics: "Title & verdict", place: "Place", price: "Price", when: "Hours & group",
-    links: "Links", faqs: "FAQs", policy: "Booking & cancellation", tags: "Tags", booking: "Booking bar",
+  const insertAt = (at: number, widget: number) => {
+    applyLayout({ blocks: [...blocks.slice(0, at), structuredClone(WIDGETS[widget].block), ...blocks.slice(at)] }, { kind: "block", index: at });
   };
-  const editTitle = current ? BLOCK_LABEL[current.type] ?? current.type : sel?.kind === "section" ? sectionLabel[sel.key] : null;
+  const addWidget = (widget: number) => insertAt(sel?.kind === "block" ? sel.index + 1 : blocks.length, widget);
+  const moveSection = (from: number, to: number) => {
+    if (from === to) return;
+    const next = order.slice();
+    next.splice(to, 0, ...next.splice(from, 1));
+    applyLayout({ order: next });
+  };
+  const toggleSection = (id: SectionState["id"]) => applyLayout({ order: order.map((x) => (x.id === id ? { ...x, show: !x.show } : x)) });
+  const toggleBlock = (i: number) => applyLayout({ blocks: blocks.map((b, j) => (j === i ? { ...b, show: b.show === false ? undefined : false } : b)) });
+  const patchBlock = (i: number, b: StoryBlock, coalesce = false) => applyLayout({ blocks: blocks.map((x, j) => (j === i ? b : x)) }, undefined, coalesce);
+  const startStory = () =>
+    applyLayout({ blocks: seedBlocks({ title: form.title, about: form.about, included: form.included, notIncluded: form.notIncluded, carry: form.carry, faqs: form.faqs }) }, null);
+
+  const editTitle = current ? BLOCK_LABEL[current.type] ?? current.type : selPart ? PART_META[selPart].label : null;
+  const partShow = (id: PartId): boolean | null => {
+    if (id === "more" || id === "booking") return fixed[id];
+    return order.find((x) => x.id === id)?.show ?? null;
+  };
+  const partNote: Partial<Record<PartId, string>> = {
+    gallery: "The photo gallery is always at the top. Manage the photos below.",
+    host: "The host card comes from the host's page. Edit the host there.",
+    reviews: "Reviews come from guests. Nothing to fill in here.",
+    more: "Other listings in the city. Nothing to fill in here.",
+    about: "The About story is built from the blocks in Layers. Write the plain About text here for listings without a custom story.",
+  };
 
   return (
     <div className={styles2.app}>
@@ -524,10 +611,16 @@ export function EditListingScreen({ id }: Props) {
         <span className={styles2.saveState} role="status">
           {dirty ? "Unsaved changes" : "All changes saved"}
         </span>
+        <button type="button" className={styles2.ibtn} aria-label="Undo" title="Undo (⌘Z)" disabled={past.length === 0} onClick={undo}>
+          ↶
+        </button>
+        <button type="button" className={styles2.ibtn} aria-label="Redo" title="Redo (⇧⌘Z)" disabled={future.length === 0} onClick={redo}>
+          ↷
+        </button>
         <button type="button" className={styles2.danger} onClick={onDelete} disabled={saving || deleting}>
           {deleting ? "Deleting…" : "Delete"}
         </button>
-        <Button type="submit" form="listing-form" variant="primary" disabled={saving || deleting}>
+        <Button type="submit" form="listing-form" variant="primary" className={styles2.save} disabled={saving || deleting}>
           {saving ? "Saving…" : "Save changes"}
         </Button>
       </header>
@@ -537,17 +630,19 @@ export function EditListingScreen({ id }: Props) {
           sel={sel}
           onSel={select}
           blocks={blocks}
+          order={order}
+          fixed={fixed}
           venue={venue}
-          onMove={(from, to) => setBlocks(moveBlock(blocks, from, to), { kind: "block", index: to })}
-          onDuplicate={(i) => setBlocks([...blocks.slice(0, i + 1), structuredClone(blocks[i]), ...blocks.slice(i + 1)], { kind: "block", index: i + 1 })}
-          onDelete={(i) => setBlocks(blocks.filter((_, j) => j !== i), null)}
+          onMoveSection={moveSection}
+          onToggleSection={toggleSection}
+          onToggleFixed={(id) => applyLayout({ fixed: { [id]: !fixed[id] } })}
+          onMoveBlock={(from, to) => applyLayout({ blocks: moveBlock(blocks, from, to) }, { kind: "block", index: to })}
+          onToggleBlock={toggleBlock}
+          onDuplicate={(i) => applyLayout({ blocks: [...blocks.slice(0, i + 1), structuredClone(blocks[i]), ...blocks.slice(i + 1)] }, { kind: "block", index: i + 1 })}
+          onDelete={(i) => applyLayout({ blocks: blocks.filter((_, j) => j !== i) }, null)}
           onAdd={() => setTab("widgets")}
-          onStart={() =>
-            setBlocks(
-              seedBlocks({ title: form.title, about: form.about, included: form.included, notIncluded: form.notIncluded, carry: form.carry, faqs: form.faqs }),
-              null,
-            )
-          }
+          onStart={startStory}
+          onDropWidget={(w, at) => insertAt(at, w)}
         />
 
         <section className={styles2.mid}>
@@ -561,24 +656,13 @@ export function EditListingScreen({ id }: Props) {
           </div>
           <div className={styles2.pane}>
             {tab === "widgets" ? (
-              <div className={styles2.paneInner}>
-                <h3 className={styles2.paneTitle}>Widgets</h3>
-                <p className={styles2.note}>
-                  {blocks.length === 0
-                    ? "Start a custom story in Layers first, then add blocks here."
-                    : "Click one to add it to the story, after the block you picked."}
-                </p>
-                {blocks.length > 0 ? (
-                  <div className={styles2.widgetGrid}>
-                    {WIDGETS.map((w) => (
-                      <button key={w.name} type="button" className={styles2.widgetCard} onClick={() => addBlock(w.block)}>
-                        <span className={styles2.widgetName}>{w.name}</span>
-                        <span className={styles2.widgetHint}>Add to story</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
+              <WidgetLibrary
+                blocks={blocks}
+                order={order}
+                noStory={blocks.length === 0}
+                onAdd={addWidget}
+                onShowSection={toggleSection}
+              />
             ) : null}
 
             {tab === "edit" && !sel ? (
@@ -591,7 +675,7 @@ export function EditListingScreen({ id }: Props) {
                     <ul className={styles.todoList}>
                       {todo.map(([anchor, text]) => (
                         <li key={text}>
-                          <button type="button" className={styles.todoLink} onClick={() => select({ kind: "section", key: anchor })}>
+                          <button type="button" className={styles.todoLink} onClick={() => select({ kind: "part", id: anchor })}>
                             {text}
                           </button>
                         </li>
@@ -605,12 +689,45 @@ export function EditListingScreen({ id }: Props) {
             {tab === "edit" && current && sel?.kind === "block" ? (
               <div className={styles2.paneInner}>
                 <h3 className={styles2.paneTitle}>{editTitle}</h3>
-                <BlockEditor block={current} onChange={(b) => setBlocks(blocks.map((x, j) => (j === sel.index ? b : x)))} />
+                <div className={styles2.sectionHead}>
+                  <label className={styles2.check}>
+                    <input type="checkbox" checked={current.show !== false} onChange={() => toggleBlock(sel.index)} />
+                    <span>Show on page</span>
+                  </label>
+                  {HALF_OK.includes(current.type) ? (
+                    <div className={styles2.seg} role="group" aria-label="Width">
+                      <button type="button" className={current.size !== "half" ? styles2.segOn : ""} aria-pressed={current.size !== "half"} onClick={() => patchBlock(sel.index, { ...current, size: undefined })}>
+                        Full width
+                      </button>
+                      <button type="button" className={current.size === "half" ? styles2.segOn : ""} aria-pressed={current.size === "half"} onClick={() => patchBlock(sel.index, { ...current, size: "half" })}>
+                        Half width
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+                {current.size === "half" ? <p className={styles2.note}>Two half-width blocks next to each other sit side by side. A lone one stays full width.</p> : null}
+                <BlockEditor block={current} onChange={(b) => patchBlock(sel.index, b, true)} />
               </div>
             ) : null}
 
-            <form id="listing-form" className={styles2.paneInner} onSubmit={onSave} hidden={tab !== "edit" || sel?.kind !== "section"}>
-              {sel?.kind === "section" ? <h3 className={styles2.paneTitle}>{editTitle}</h3> : null}
+            {tab === "edit" && selPart ? (
+              <div className={styles2.paneInner}>
+                <h3 className={styles2.paneTitle}>{editTitle}</h3>
+                {partShow(selPart) !== null ? (
+                  <label className={styles2.check}>
+                    <input
+                      type="checkbox"
+                      checked={partShow(selPart) === true}
+                      onChange={() => (selPart === "more" || selPart === "booking" ? applyLayout({ fixed: { [selPart]: !fixed[selPart] } }) : toggleSection(selPart as SectionState["id"]))}
+                    />
+                    <span>Show on page</span>
+                  </label>
+                ) : null}
+                {partNote[selPart] ? <p className={styles2.note}>{partNote[selPart]}</p> : null}
+              </div>
+            ) : null}
+
+            <form id="listing-form" className={styles2.paneInner} onSubmit={onSave} hidden={tab !== "edit" || !selPart || FORMS[selPart].length === 0}>
         <div id="sec-photos" className={styles.group} hidden={!showSec("photos")}>
         <ListingPhotos
           experienceId={id}
@@ -1204,25 +1321,44 @@ export function EditListingScreen({ id }: Props) {
         </section>
 
         <section className={styles2.stage} aria-label="Mobile preview">
-          <div className={styles2.colHead}>
-            <h2>Mobile preview</h2>
-            <p>discovr.in/experiences/{form.slug || "untitled"}</p>
+          <div className={`${styles2.colHead} ${styles2.stageHead}`}>
+            <div>
+              <h2>Mobile preview</h2>
+              <p>discovr.in/experiences/{form.slug || "untitled"}</p>
+            </div>
+            <button type="button" className={`${styles2.ibtn} ${arranging ? styles2.ibtnOn : ""}`} aria-pressed={arranging} onClick={() => setArranging(!arranging)}>
+              {arranging ? "Done" : "Arrange"}
+            </button>
           </div>
           <div className={styles2.stageBody}>
             <ListingPhone
-              title={form.title}
-              verdict={form.verdict}
-              hostLabel={hostLabel}
-              coverUrl={cover?.src}
-              priceFromInr={Number(form.priceFromInr) || 0}
-              priceUnit={form.priceUnit}
-              place={[form.placeName, form.placeNeighborhood].filter((x) => x.trim()).join(", ")}
-              hours={form.timeSlot || form.days}
-              hasInstagram={Boolean(form.instagramUrl.trim())}
-              bookLabel={form.bookVia === "link" ? "Book" : "Call to book"}
+              data={{
+                title: form.title,
+                verdict: form.verdict,
+                hostLabel,
+                coverUrl: cover?.src,
+                priceFromInr: Number(form.priceFromInr) || 0,
+                priceUnit: form.priceUnit,
+                place: [form.placeName, form.placeNeighborhood].filter((x) => x.trim()).join(", "),
+                hours: form.timeSlot || form.days,
+                bestTime: form.bestTime,
+                about: form.about,
+                menuPages: media.menuPages.length,
+                hasPolicy: Boolean(form.policySummary.trim() || form.bookingNotes.some((x) => x.trim()) || form.cancellationNotes.some((x) => x.trim())),
+                hasInstagram: Boolean(form.instagramUrl.trim()),
+                bookLabel: form.bookVia === "link" ? "Book" : "Call to book",
+              }}
+              order={order}
               blocks={blocks}
+              showMore={fixed.more}
+              showBooking={fixed.booking}
               sel={sel}
               onSel={select}
+              arranging={arranging}
+              onArrange={setArranging}
+              onMoveSection={moveSection}
+              onMoveBlock={(from, to) => applyLayout({ blocks: moveBlock(blocks, from, to) }, { kind: "block", index: to })}
+              onDropWidget={(w, at) => insertAt(at, w)}
             />
           </div>
         </section>
