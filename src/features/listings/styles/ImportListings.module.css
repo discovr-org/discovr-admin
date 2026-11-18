@@ -1,0 +1,116 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 1040px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: var(--border-hairline) solid var(--line-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.title {
+  margin: 0;
+}
+
+.hint {
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+.row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 240px;
+}
+
+.label {
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 600;
+}
+
+.select,
+.file {
+  min-height: var(--size-field);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--ink-primary);
+  font: inherit;
+}
+
+.file {
+  padding-top: 10px;
+}
+
+.select:focus-visible,
+.file:focus-visible {
+  outline: var(--border-focus) solid var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-hairline) solid var(--line-subtle);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+
+.bad {
+  color: var(--ink-primary);
+  font-weight: 600;
+}
+
+.issue {
+  color: var(--ink-muted);
+}
+
+.guide dt {
+  font-weight: 600;
+}
+
+.guide dd {
+  margin: 0 0 var(--space-2);
+  color: var(--ink-muted);
+}
+
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
