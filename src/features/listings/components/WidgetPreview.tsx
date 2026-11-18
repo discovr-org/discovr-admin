@@ -111,12 +111,14 @@ export function PreviewBlock({ block }: { block: StoryBlock }) {
   }
 }
 
-/** Small live preview of a widget, for the Widgets tab. */
+/** Small preview of a widget, scaled the way the prototype draws its cards. */
 export function WidgetPreview({ block }: { block: StoryBlock }) {
   return (
-    <div className={styles.wPrev} aria-hidden="true">
-      <div className={styles.wPrevInner}>
-        <PreviewBlock block={block} />
+    <div className={styles.wprev} aria-hidden="true">
+      <div className={`${styles.wsz} ${block.size === "half" ? styles.wszHalf : ""}`}>
+        <div>
+          <PreviewBlock block={block} />
+        </div>
       </div>
     </div>
   );

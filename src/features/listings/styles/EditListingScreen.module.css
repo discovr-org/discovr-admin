@@ -442,17 +442,18 @@
   display: none;
 }
 
-/* The editor's form sections read as cards with a small caps label, like the prototype's inspector. */
+/* The editor's form sections read as cards with a small-caps label, like the prototype's inspector. */
 .editForm {
-  --size-field: 40px;
+  --size-field: 38px;
+  gap: 14px;
 }
 
 .editForm .section,
 .editForm .group {
   padding: var(--space-4);
   border: var(--border-hairline) solid var(--line-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface-raised);
+  border-radius: 16px;
+  background: var(--editor-panel);
 }
 
 .editForm .sectionTitle {
@@ -462,4 +463,51 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+/* Fields follow the prototype's inputs: 14px text, 10px radius, blue focus ring. */
+.editForm label {
+  color: var(--ink-muted);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.editForm div:has(> input:not([type="checkbox"], [type="radio"])) {
+  padding: 0 11px;
+  border-color: var(--line-subtle);
+  border-radius: 10px;
+}
+
+.editForm div:has(> input:not([type="checkbox"], [type="radio"])):focus-within {
+  border-color: var(--editor-focus);
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--editor-focus-ring);
+}
+
+.editForm input:not([type="checkbox"], [type="radio"]) {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.editForm .textarea,
+.editForm .select {
+  padding: 9px 11px;
+  border: var(--border-hairline) solid var(--line-subtle);
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.editForm .textarea:focus-visible,
+.editForm .select:focus-visible {
+  border-color: var(--editor-focus);
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--editor-focus-ring);
+}
+
+.section[hidden],
+.group[hidden] {
+  display: none;
 }

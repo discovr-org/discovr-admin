@@ -23,11 +23,13 @@ import {
 import { useToast } from "@/shared/components/Toast";
 import styles from "../styles/EditListingScreen.module.css";
 import { ListingPhotos } from "./ListingPhotos";
-import { BLOCK_LABEL, HALF_OK, WIDGETS, cleanBlocks, moveBlock, parseBlocks, seedBlocks, type StoryBlock } from "../utils/storyBlocks";
+import { BLOCK_ICON, PART_ICON } from "../utils/layerIcons";
+import { BLOCK_LABEL, HALF_OK, blockLabel, WIDGETS, cleanBlocks, moveBlock, parseBlocks, seedBlocks, type StoryBlock } from "../utils/storyBlocks";
 import { FORMS, PART_META, readFixedShown, readSections, writeSections, type PartId, type SectionState } from "../utils/pageLayout";
 import styles2 from "../styles/ListingEditor.module.css";
 import { BlockEditor } from "./BlockEditor";
 import { ListingLayers, type Sel } from "./ListingLayers";
+import { Ic, type IconName } from "./EditorIcon";
 import { LivePreview } from "./LivePreview";
 import { WidgetLibrary } from "./WidgetLibrary";
 
@@ -222,13 +224,13 @@ function buildContent(form: FormState): ExperienceContent {
   };
 }
 
-function PaneHead({ glyph, title, sub }: { glyph: string; title: string | null; sub: string }) {
+function PaneHead({ icon, title, sub }: { icon: IconName; title: string; sub: string }) {
   return (
     <div className={styles2.ihead}>
-      <span className={styles2.iheadIc} aria-hidden="true">
-        {glyph}
+      <span className={styles2.iheadIc}>
+        <Ic name={icon} size={20} />
       </span>
-      <div>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <h3 className={styles2.paneTitle}>{title}</h3>
         <p>{sub}</p>
       </div>
@@ -622,6 +624,13 @@ export function EditListingScreen({ id }: Props) {
     about: "The About story is built from the blocks in Layers. Write the plain About text here for listings without a custom story.",
   };
 
+  /** Where a dragged part lands, as a position in the list once it has been lifted out. */
+  const dropIndex = (from: number, target: number, after: boolean) => {
+    const at = target + (after ? 1 : 0);
+    return from < at ? at - 1 : at;
+  };
+  const hideLabel = (shown: boolean) => (shown ? "Hide from page" : "Show on page");
+
   return (
     <div className={styles2.app}>
       <header className={styles2.top}>
@@ -640,17 +649,18 @@ export function EditListingScreen({ id }: Props) {
           {dirty ? "Unsaved changes" : "All changes saved"}
         </span>
         <button type="button" className={styles2.ibtn} aria-label="Undo" title="Undo (⌘Z)" disabled={past.length === 0} onClick={undo}>
-          ↶
+          <Ic name="undo" size={17} />
         </button>
         <button type="button" className={styles2.ibtn} aria-label="Redo" title="Redo (⇧⌘Z)" disabled={future.length === 0} onClick={redo}>
-          ↷
+          <Ic name="redo" size={17} />
         </button>
-        <button type="button" className={styles2.danger} onClick={onDelete} disabled={saving || deleting}>
+        <button type="button" className={`${styles2.btn} ${styles2.btnDanger}`} onClick={onDelete} disabled={saving || deleting}>
+          <Ic name="trash" size={15} />
           {deleting ? "Deleting…" : "Delete"}
         </button>
-        <Button type="submit" form="listing-form" variant="primary" className={styles2.save} disabled={saving || deleting}>
+        <button type="submit" form="listing-form" className={`${styles2.btn} ${styles2.btnPrimary}`} disabled={saving || deleting}>
           {saving ? "Saving…" : "Save changes"}
-        </Button>
+        </button>
       </header>
 
       <div className={styles2.main}>
@@ -678,10 +688,12 @@ export function EditListingScreen({ id }: Props) {
         <section className={styles2.mid}>
           <div className={styles2.tabs}>
             <button type="button" className={`${styles2.tab} ${tab === "widgets" ? styles2.tabOn : ""}`} onClick={() => setTab("widgets")}>
-              Widgets
+              <Ic name="widgets" size={15} />
+              <span>Widgets</span>
             </button>
             <button type="button" className={`${styles2.tab} ${tab === "edit" ? styles2.tabOn : ""}`} onClick={() => setTab("edit")}>
-              {editTitle ? `Edit · ${editTitle}` : "Edit"}
+              <Ic name="edit" size={15} />
+              <span>{editTitle ? `Edit · ${current ? blockLabel(current) : editTitle}` : "Edit block"}</span>
             </button>
           </div>
           <div className={styles2.pane}>
@@ -697,8 +709,15 @@ export function EditListingScreen({ id }: Props) {
 
             {tab === "edit" && !sel ? (
               <div className={styles2.paneInner}>
-                <h3 className={styles2.paneTitle}>Nothing selected</h3>
-                <p className={styles2.note}>Click any part of the phone, or a layer, to fill it in.</p>
+                <div className={styles2.ihead}>
+                  <span className={styles2.iheadIc}>
+                    <Ic name="edit" size={22} />
+                  </span>
+                  <div>
+                    <h3 className={styles2.paneTitle}>Nothing selected</h3>
+                    <p>Click any block in the phone or in Layers to fill in its details.</p>
+                  </div>
+                </div>
                 {todo.length > 0 ? (
                   <section className={styles.todo} aria-label="Finish setting up">
                     <h2 className={`t-title-sm ${styles.sectionTitle}`}>Finish setting up</h2>
@@ -718,42 +737,78 @@ export function EditListingScreen({ id }: Props) {
 
             {tab === "edit" && current && sel?.kind === "block" ? (
               <div className={styles2.paneInner}>
-                <PaneHead glyph="⋮⋮" title={editTitle} sub={current.type === "line" ? "Divider" : "Story block"} />
-                <div className={styles2.sectionHead}>
-                  <label className={styles2.check}>
-                    <input type="checkbox" checked={current.show !== false} onChange={() => toggleBlock(sel.index)} />
-                    <span>Show on page</span>
-                  </label>
-                  {HALF_OK.includes(current.type) ? (
+                <PaneHead icon={BLOCK_ICON[current.type] ?? "type"} title={blockLabel(current)} sub={BLOCK_LABEL[current.type] ?? current.type} />
+                {HALF_OK.includes(current.type) ? (
+                  <div className={styles2.isec}>
+                    <h4 className={styles2.isecTitle}>Widget size</h4>
                     <div className={styles2.seg} role="group" aria-label="Width">
-                      <button type="button" className={current.size !== "half" ? styles2.segOn : ""} aria-pressed={current.size !== "half"} onClick={() => patchBlock(sel.index, { ...current, size: undefined })}>
-                        Full width
-                      </button>
                       <button type="button" className={current.size === "half" ? styles2.segOn : ""} aria-pressed={current.size === "half"} onClick={() => patchBlock(sel.index, { ...current, size: "half" })}>
+                        <span className={styles2.szic}>
+                          <i className="f" />
+                          <i />
+                        </span>
                         Half width
                       </button>
+                      <button type="button" className={current.size !== "half" ? styles2.segOn : ""} aria-pressed={current.size !== "half"} onClick={() => patchBlock(sel.index, { ...current, size: undefined })}>
+                        <span className={styles2.szic}>
+                          <i className="f" />
+                          <i className="f" />
+                        </span>
+                        Full width
+                      </button>
                     </div>
-                  ) : null}
+                    <p className={styles2.note} style={{ marginTop: 10 }}>
+                      Two half-width widgets next to each other sit side by side. A lone one stays full width.
+                    </p>
+                  </div>
+                ) : null}
+                <div className={styles2.isec}>
+                  <h4 className={styles2.isecTitle}>Content</h4>
+                  <div className={styles2.isecBody}>
+                    <BlockEditor block={current} onChange={(b) => patchBlock(sel.index, b, true)} />
+                  </div>
                 </div>
-                {current.size === "half" ? <p className={styles2.note}>Two half-width blocks next to each other sit side by side. A lone one stays full width.</p> : null}
-                <BlockEditor block={current} onChange={(b) => patchBlock(sel.index, b, true)} />
+                <div className={styles2.ifoot}>
+                  <button type="button" className={styles2.btn} onClick={() => toggleBlock(sel.index)}>
+                    <Ic name={current.show === false ? "eye" : "eyeoff"} size={15} />
+                    {hideLabel(current.show !== false)}
+                  </button>
+                  <button type="button" className={styles2.btn} disabled={sel.index === 0} onClick={() => applyLayout({ blocks: moveBlock(blocks, sel.index, sel.index - 1) }, { kind: "block", index: sel.index - 1 })}>
+                    <Ic name="up" size={15} />
+                    Move up
+                  </button>
+                  <button type="button" className={styles2.btn} disabled={sel.index === blocks.length - 1} onClick={() => applyLayout({ blocks: moveBlock(blocks, sel.index, sel.index + 1) }, { kind: "block", index: sel.index + 1 })}>
+                    <Ic name="chev" size={15} />
+                    Move down
+                  </button>
+                  <button type="button" className={styles2.btn} onClick={() => applyLayout({ blocks: [...blocks.slice(0, sel.index + 1), structuredClone(current), ...blocks.slice(sel.index + 1)] }, { kind: "block", index: sel.index + 1 })}>
+                    <Ic name="copy" size={15} />
+                    Duplicate
+                  </button>
+                  <button type="button" className={`${styles2.btn} ${styles2.btnDanger}`} onClick={() => applyLayout({ blocks: blocks.filter((_, j) => j !== sel.index) }, null)}>
+                    <Ic name="trash" size={15} />
+                    Delete
+                  </button>
+                </div>
               </div>
             ) : null}
 
             {tab === "edit" && selPart ? (
-              <div className={styles2.paneInner}>
-                <PaneHead glyph={PART_META[selPart].glyph} title={editTitle} sub={PART_META[selPart].hint} />
-                {partShow(selPart) !== null ? (
-                  <label className={styles2.check}>
-                    <input
-                      type="checkbox"
-                      checked={partShow(selPart) === true}
-                      onChange={() => (selPart === "more" || selPart === "booking" ? applyLayout({ fixed: { [selPart]: !fixed[selPart] } }) : toggleSection(selPart as SectionState["id"]))}
-                    />
-                    <span>Show on page</span>
-                  </label>
-                ) : null}
+              <div className={styles2.paneInner} style={{ paddingBottom: 0 }}>
+                <PaneHead icon={PART_ICON[selPart]} title={PART_META[selPart].label} sub={PART_META[selPart].hint} />
                 {partNote[selPart] ? <p className={styles2.note}>{partNote[selPart]}</p> : null}
+                {partShow(selPart) !== null ? (
+                  <div className={styles2.ifoot}>
+                    <button
+                      type="button"
+                      className={styles2.btn}
+                      onClick={() => (selPart === "more" || selPart === "booking" ? applyLayout({ fixed: { [selPart]: !fixed[selPart] } }) : toggleSection(selPart as SectionState["id"]))}
+                    >
+                      <Ic name={partShow(selPart) ? "eyeoff" : "eye"} size={15} />
+                      {hideLabel(partShow(selPart) === true)}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -1351,39 +1406,42 @@ export function EditListingScreen({ id }: Props) {
         </section>
 
         <section className={styles2.stage} aria-label="Mobile preview">
-          <div className={`${styles2.colHead} ${styles2.stageHead}`}>
+          <div className={styles2.stagebar}>
             <div>
-              <h2>Mobile preview</h2>
-              <p>discovr.in/experiences/{form.slug || "untitled"}</p>
+              <div className={styles2.t}>Mobile preview</div>
+              <div className={styles2.s}>discovr.in/experiences/{form.slug || "untitled"}</div>
             </div>
-            <button type="button" className={`${styles2.ibtn} ${arranging ? styles2.ibtnOn : ""}`} aria-pressed={arranging} onClick={() => setArranging(!arranging)}>
+            <button type="button" className={`${styles2.btn} ${styles2.btnSm} ${arranging ? styles2.btnActive : ""}`} aria-pressed={arranging} onClick={() => setArranging(!arranging)}>
+              <Ic name={arranging ? "check" : "move"} size={14} />
               {arranging ? "Done" : "Arrange"}
             </button>
           </div>
-          <div className={styles2.stageBody}>
-            <LivePreview
-              id={id}
-              draft={buildPatch(form)}
-              selected={pvId(sel)}
-              hover={hoverId}
-              arranging={arranging}
-              scrollTo={scrollTo}
-              onSelect={(pv) => select(fromPv(pv))}
-              onHover={setHoverId}
-              onArrange={setArranging}
-              onAdd={() => setTab("widgets")}
-              onMove={(from, to) => {
-                if (from.startsWith("block:")) {
-                  const [a, b] = [Number(from.slice(6)), Number(to.slice(6))];
-                  applyLayout({ blocks: moveBlock(blocks, a, b) }, { kind: "block", index: b });
-                } else moveSection(order.findIndex((x) => `part:${x.id}` === from), order.findIndex((x) => `part:${x.id}` === to));
-              }}
-              onRemove={(pv) => {
-                if (pv.startsWith("block:")) applyLayout({ blocks: blocks.filter((_, j) => j !== Number(pv.slice(6))) }, null);
-                else toggleSection(pv.slice(5) as SectionState["id"]);
-              }}
-            />
-          </div>
+          <LivePreview
+            id={id}
+            draft={buildPatch(form)}
+            selected={pvId(sel)}
+            hover={hoverId}
+            arranging={arranging}
+            scrollTo={scrollTo}
+            onSelect={(pv) => select(fromPv(pv))}
+            onHover={setHoverId}
+            onArrange={setArranging}
+            onAdd={() => setTab("widgets")}
+            onMove={(from, to, after) => {
+              if (from.startsWith("block:")) {
+                const a = Number(from.slice(6));
+                const b = dropIndex(a, Number(to.slice(6)), after);
+                applyLayout({ blocks: moveBlock(blocks, a, b) }, { kind: "block", index: b });
+              } else {
+                const a = order.findIndex((x) => `part:${x.id}` === from);
+                moveSection(a, dropIndex(a, order.findIndex((x) => `part:${x.id}` === to), after));
+              }
+            }}
+            onRemove={(pv) => {
+              if (pv.startsWith("block:")) applyLayout({ blocks: blocks.filter((_, j) => j !== Number(pv.slice(6))) }, null);
+              else toggleSection(pv.slice(5) as SectionState["id"]);
+            }}
+          />
         </section>
       </div>
     </div>

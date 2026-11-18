@@ -44,6 +44,14 @@
   --editor-bezel: linear-gradient(145deg, #2a302e, #141817);
   --editor-bezel-ring: #3a4240;
   --editor-island: #000;
+  --editor-admin: #090e0d;
+  --editor-panel: #0d1312;
+  --editor-panel-2: #121918;
+  --editor-panel-hover: #151d1c;
+  --editor-card: #0f1615;
+  --editor-sel-edge: #34507a;
+  --editor-focus: #4d79b8;
+  --editor-focus-ring: rgba(110, 168, 255, 0.15);
 
   /* spacing, 4px base — design system values */
   --space-1: 4px;

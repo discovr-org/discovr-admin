@@ -24,23 +24,26 @@ export function WidgetLibrary({ blocks, order, noStory, onAdd, onShowSection }: 
   const hidden = order.filter((s) => !s.show && s.id !== "about");
 
   return (
-    <div className={styles.paneInner}>
-      <div className={styles.sectionHead}>
+    <div className={styles.lib}>
+      <div className={styles.libTop}>
         <h3 className={styles.paneTitle}>Widgets</h3>
+        <input className={styles.search} type="search" placeholder="Search widgets" aria-label="Search widgets" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
-      <input className={styles.search} type="search" placeholder="Search widgets" aria-label="Search widgets" value={q} onChange={(e) => setQ(e.target.value)} />
       <p className={styles.note}>
-        {noStory ? "Start a custom story in Layers first, then add blocks here." : "Click one to add it after the selected block, or drag it onto Layers or the phone."}
+        {noStory
+          ? "Start a custom story in Layers first, then add blocks here."
+          : "Optional blocks a listing can use. Click one to add it below the selected block, or drag it straight onto the phone."}
       </p>
       {noStory ? null : (
         <>
-          <p className={styles.group}>Story blocks</p>
+          <div className={styles.group}>Widgets</div>
           <div className={styles.widgetGrid}>
             {shown.map(({ w, i }) => (
               <button
                 key={w.name}
                 type="button"
-                className={styles.widgetCard}
+                className={styles.wcard}
+                title="Click to add · drag onto the phone or into Layers"
                 draggable
                 onDragStart={(e) => {
                   e.dataTransfer.setData("text/widget", String(i));
@@ -49,11 +52,11 @@ export function WidgetLibrary({ blocks, order, noStory, onAdd, onShowSection }: 
                 onClick={() => onAdd(i)}
               >
                 <WidgetPreview block={w.block} />
-                <span className={styles.widgetName}>{w.name}</span>
-                <span className={styles.widgetHint}>
-                  {w.block.size === "half" ? "Half width · " : ""}
-                  {used.has(w.block.type) ? <span className={styles.widgetOn}>On page</span> : "Add to story"}
-                </span>
+                <div className={styles.wmeta}>
+                  <span className={styles.wname}>{w.name}</span>
+                  {used.has(w.block.type) ? <span className={`${styles.chip} ${styles.chipOn}`}>On page</span> : null}
+                  <span className={styles.chip}>{w.block.size === "half" ? "Half" : "Full"}</span>
+                </div>
               </button>
             ))}
           </div>
@@ -62,12 +65,14 @@ export function WidgetLibrary({ blocks, order, noStory, onAdd, onShowSection }: 
       )}
       {hidden.length > 0 ? (
         <>
-          <p className={styles.group}>Hidden page sections</p>
+          <div className={styles.group}>Hidden page sections</div>
           <div className={styles.widgetGrid}>
             {hidden.map((s) => (
-              <button key={s.id} type="button" className={styles.widgetCard} onClick={() => onShowSection(s.id)}>
-                <span className={styles.widgetName}>{PART_META[s.id].label}</span>
-                <span className={styles.widgetHint}>Show on page</span>
+              <button key={s.id} type="button" className={styles.wcard} onClick={() => onShowSection(s.id)}>
+                <div className={styles.wmeta}>
+                  <span className={styles.wname}>{PART_META[s.id].label}</span>
+                  <span className={styles.chip}>Show</span>
+                </div>
               </button>
             ))}
           </div>

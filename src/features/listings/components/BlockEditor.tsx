@@ -5,6 +5,7 @@ import { Input } from "@/shared/components/Input";
 import { useToast } from "@/shared/components/Toast";
 import { uploadContentImageAdmin } from "@/shared/utils/catalogApi";
 import type { StoryBlock } from "../utils/storyBlocks";
+import { Ic } from "./EditorIcon";
 import styles from "../styles/ListingEditor.module.css";
 
 type Props = { block: StoryBlock; onChange: (block: StoryBlock) => void };
@@ -43,8 +44,8 @@ function Row({ children, onRemove, label }: { children: React.ReactNode; onRemov
     <div className={styles.repCard}>
       <div className={styles.repHead}>
         <span>{label}</span>
-        <button type="button" className={styles.iconBtn} aria-label={`Remove ${label}`} onClick={onRemove}>
-          ×
+        <button type="button" className={styles.ibtn} aria-label={`Remove ${label}`} onClick={onRemove}>
+          <Ic name="x" size={14} />
         </button>
       </div>
       {children}
@@ -92,7 +93,7 @@ export function BlockEditor({ block, onChange }: Props) {
             </Row>
           ))}
           <button type="button" className={styles.addBtn} onClick={() => onChange({ ...block, paragraphs: [...block.paragraphs, { text: "" }] })}>
-            Add paragraph
+            <Ic name="plus" size={14} /> Add paragraph
           </button>
         </>
       );
@@ -125,7 +126,7 @@ export function BlockEditor({ block, onChange }: Props) {
           ))}
           {block.columns.length < 2 ? (
             <button type="button" className={styles.addBtn} onClick={() => onChange({ ...block, columns: [...block.columns, { title: "", tone: "bring", items: [] }] })}>
-              Add column
+              <Ic name="plus" size={14} /> Add column
             </button>
           ) : null}
         </>
@@ -141,7 +142,7 @@ export function BlockEditor({ block, onChange }: Props) {
             </Row>
           ))}
           <button type="button" className={styles.addBtn} onClick={() => onChange({ ...block, items: [...block.items, { marker: String(block.items.length + 1), title: "" }] })}>
-            Add step
+            <Ic name="plus" size={14} /> Add step
           </button>
         </>
       );
@@ -170,7 +171,7 @@ export function BlockEditor({ block, onChange }: Props) {
             </Row>
           ))}
           <button type="button" className={styles.addBtn} onClick={() => onChange({ ...block, items: [...block.items, { q: "", a: "" }] })}>
-            Add question
+            <Ic name="plus" size={14} /> Add question
           </button>
         </>
       );
@@ -184,7 +185,7 @@ export function BlockEditor({ block, onChange }: Props) {
             </Row>
           ))}
           <button type="button" className={styles.addBtn} onClick={() => onChange({ ...block, items: [...block.items, { label: "", value: "" }] })}>
-            Add tile
+            <Ic name="plus" size={14} /> Add tile
           </button>
         </>
       );
@@ -200,7 +201,7 @@ export function BlockEditor({ block, onChange }: Props) {
             </Row>
           ))}
           <button type="button" className={styles.addBtn} onClick={() => onChange({ ...block, items: [...block.items, { name: "", price: "" }] })}>
-            Add package
+            <Ic name="plus" size={14} /> Add package
           </button>
         </>
       );
