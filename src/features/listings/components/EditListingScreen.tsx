@@ -127,7 +127,7 @@ type LineKey =
   | "carry"
   | "knowBeforeYouGo";
 
-function toForm(row: CatalogExperienceAdmin): FormState {
+export function toForm(row: CatalogExperienceAdmin): FormState {
   const c = row.content ?? {};
   const s = row.schedule ?? {};
   const p = row.policy;
@@ -322,7 +322,7 @@ export function buildPatch(form: FormState): ExperienceAdminPatch & { categoryId
   };
 }
 
-const slugFromTitle = (title: string) =>
+export const slugFromTitle = (title: string) =>
   title
     .trim()
     .toLowerCase()
@@ -331,7 +331,7 @@ const slugFromTitle = (title: string) =>
     .slice(0, 80);
 
 /** What an empty new listing starts as. */
-function blankRow(): CatalogExperienceAdmin {
+export function blankRow(): CatalogExperienceAdmin {
   return {
     id: "",
     slug: "",

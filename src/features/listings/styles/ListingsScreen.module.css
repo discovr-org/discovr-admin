@@ -239,3 +239,9 @@
     grid-template-columns: 1fr;
   }
 }
+
+.headActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

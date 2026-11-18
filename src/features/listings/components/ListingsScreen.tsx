@@ -18,6 +18,7 @@ import {
   useCatalog,
 } from "@/shared/utils/useCatalog";
 import { useToast } from "@/shared/components/Toast";
+import { ExportListingsButton } from "./ExportListingsButton";
 import styles from "../styles/ListingsScreen.module.css";
 
 type StatusFilter = "all" | "published" | "draft" | "archived";
@@ -137,9 +138,15 @@ export function ListingsScreen() {
         <p className={`t-body-sm ${styles.meta}`}>
           {filtered.length} of {rows.length} from catalog API
         </p>
-        <Button href="/listings/new" variant="secondary" icon={<PlusIcon />}>
-          Add listing
-        </Button>
+        <div className={styles.headActions}>
+          <ExportListingsButton ids={filtered.map((r) => r.id)} />
+          <Button href="/listings/import" variant="secondary">
+            Import CSV
+          </Button>
+          <Button href="/listings/new" variant="secondary" icon={<PlusIcon />}>
+            Add listing
+          </Button>
+        </div>
       </div>
 
       <div className={styles.filters}>
