@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
 import {
@@ -11,12 +11,15 @@ import {
   patchExperienceAdmin,
   type CatalogExperienceAdmin,
   type CatalogHostSummary,
+  type ExperienceAdminPatch,
   type ExperienceContent,
 } from "@/shared/utils/catalogApi";
 import { fetchCategories } from "@/features/categories/utils/categoryApi";
 import type { Category } from "@/features/categories/utils/layout";
 import { useCatalog } from "@/shared/utils/useCatalog";
 import { useToast } from "@/shared/components/Toast";
+import { LivePreview } from "./LivePreview";
+import add from "../styles/AddListing.module.css";
 import styles from "../styles/EditListingScreen.module.css";
 
 function slugFromTitle(title: string): string {
@@ -63,6 +66,24 @@ export function AddListingScreen() {
   const [categoryId, setCategoryId] = useState("");
   const [source, setSource] = useState<CatalogExperienceAdmin | null>(null);
   const [loadingSource, setLoadingSource] = useState(false);
+
+  // The preview needs a real listing to draw on. A copy previews its source; otherwise the first live listing stands in.
+  const sample = useMemo(() => (experiences ?? []).find((x) => x.status === "published") ?? experiences?.[0], [experiences]);
+  const baseId = source?.id ?? sample?.id ?? "";
+  const draft = useMemo(
+    () =>
+      ({
+        ...(source ? {} : { categoryId: categoryId || null }),
+        ...(title.trim() ? { title: title.trim() } : {}),
+        ...(verdict.trim() ? { verdict: verdict.trim() } : {}),
+        ...(about.trim() ? { about } : {}),
+        ...(placeName.trim() ? { placeName: placeName.trim() } : {}),
+        ...(placeNeighborhood.trim() ? { placeNeighborhood: placeNeighborhood.trim() } : {}),
+        ...(Number(priceFromInr) > 0 ? { priceFromInr: Math.round(Number(priceFromInr)) } : {}),
+      }) as ExperienceAdminPatch,
+    [source, categoryId, title, verdict, about, placeName, placeNeighborhood, priceFromInr],
+  );
+  const noop = () => undefined;
 
   /** Pick a listing to start from, or none for a blank one. The page layout and text come along. */
   async function chooseSource(id: string) {
@@ -180,43 +201,55 @@ export function AddListingScreen() {
   }
 
   return (
+    <div className={add.wrap}>
     <form className={styles.panel} onSubmit={onSave}>
       <div className={styles.section}>
-        <h2 className={`t-title-sm ${styles.sectionTitle}`}>New listing</h2>
+        <h2 className={`t-title-sm ${styles.sectionTitle}`}>1. Pick a layout</h2>
+        <div className={add.picker} role="radiogroup" aria-label="Page layout">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!categoryId}
+            className={add.card}
+            onClick={() => setCategoryId("")}
+          >
+            <span className={add.cardName}>Blank</span>
+            <span className={add.cardHint}>Set up the page yourself after you create the listing.</span>
+          </button>
+          {categories.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              role="radio"
+              aria-checked={categoryId === c.id}
+              className={add.card}
+              onClick={() => {
+                setCategoryId(c.id);
+                setSource(null);
+              }}
+            >
+              <span className={add.cardName}>{c.name}</span>
+              <span className={add.cardHint}>
+                {c.layout.story?.length ?? 0} story blocks · {c.listingCount ?? 0} listing{c.listingCount === 1 ? "" : "s"}
+              </span>
+            </button>
+          ))}
+        </div>
+        <p className={`t-body-sm ${styles.hint}`}>
+          {categoryId ? "The page layout comes from this category. The preview updates as you type." : "Pick a layout and watch the preview. Everything below fills it in."}
+        </p>
+      </div>
+
+      <div className={styles.section}>
+        <h2 className={`t-title-sm ${styles.sectionTitle}`}>2. Details</h2>
         <div className={styles.grid2}>
-          {categories.length > 0 ? (
-            <div className={`${styles.selectField} ${styles.full}`}>
-              <label className={styles.textareaLabel} htmlFor="new-category">
-                Category
-              </label>
-              <select
-                id="new-category"
-                className={styles.select}
-                value={categoryId}
-                onChange={(e) => {
-                  setCategoryId(e.target.value);
-                  if (e.target.value) setSource(null);
-                }}
-              >
-                <option value="">None (set up the page layout yourself)</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              <p className={`t-body-sm ${styles.hint}`}>
-                {categoryId ? "The page layout comes from the category. After you create the listing, fill in its content." : "Pick a category to use its fixed page layout."}
-              </p>
-            </div>
-          ) : null}
           {categoryId ? null : (
           <div className={`${styles.selectField} ${styles.full}`}>
             <label className={styles.textareaLabel} htmlFor="new-from">
-              Start from
+              Or copy an existing listing
             </label>
             <select id="new-from" className={styles.select} value={source?.id ?? ""} disabled={loadingSource} onChange={(e) => void chooseSource(e.target.value)}>
-              <option value="">Blank listing</option>
+              <option value="">Don&apos;t copy</option>
               {[...(experiences ?? [])]
                 .sort((a, b) => a.title.localeCompare(b.title))
                 .map((x) => (
@@ -230,7 +263,7 @@ export function AddListingScreen() {
                 ? "Loading…"
                 : source
                   ? "Copies the page layout, text, hours, policy and tags. Photos, menu pages, links and phone numbers are not copied. Photos inside the story stay until you replace them."
-                  : "Pick a listing to reuse its layout, then edit the content."}
+                  : "Reuses another listing's layout and text. Then edit the content."}
             </p>
           </div>
           )}
@@ -358,5 +391,34 @@ export function AddListingScreen() {
         </Button>
       </div>
     </form>
+
+    <aside className={add.preview} aria-label="Live preview">
+      <div className={add.previewHead}>
+        <h2 className={add.previewTitle}>Live preview</h2>
+        <p className={`t-body-sm ${add.previewNote}`}>
+          {baseId
+            ? `Photos, host and anything you haven't filled in yet come from ${source?.title ?? sample?.title ?? "a sample listing"}.`
+            : "Add a listing first to see a preview."}
+        </p>
+      </div>
+      {baseId ? (
+        <LivePreview
+          id={baseId}
+          draft={draft}
+          mediaKey=""
+          selected={null}
+          hover={null}
+          arranging={false}
+          scrollTo={null}
+          onSelect={noop}
+          onHover={noop}
+          onMove={noop}
+          onRemove={noop}
+          onArrange={noop}
+          onAdd={noop}
+        />
+      ) : null}
+    </aside>
+    </div>
   );
 }

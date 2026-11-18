@@ -1,0 +1,88 @@
+.wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 460px;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.preview {
+  position: sticky;
+  top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 140px);
+  min-height: 560px;
+  border: var(--border-hairline) solid var(--line-subtle);
+  border-radius: var(--radius-md);
+  background: radial-gradient(circle at 50% 30%, var(--editor-panel-2), var(--editor-admin) 70%);
+  overflow: hidden;
+}
+
+.previewHead {
+  padding: var(--space-3) var(--space-4) 0;
+}
+
+.previewTitle {
+  margin: 0;
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 600;
+}
+
+.previewNote {
+  margin: 2px 0 0;
+  color: var(--ink-muted);
+}
+
+.picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: var(--size-field);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--ink-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.card[aria-checked="true"] {
+  border-color: var(--ink-primary);
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1px var(--ink-primary);
+}
+
+.card:focus-visible {
+  outline: var(--border-focus) solid var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.cardName {
+  font-weight: 600;
+}
+
+.cardHint {
+  color: var(--ink-muted);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+@media (max-width: 1100px) {
+  .wrap {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .preview {
+    position: static;
+    height: 760px;
+  }
+}
