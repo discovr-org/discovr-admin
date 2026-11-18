@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { patchExperienceLocal, useCatalog } from "@/shared/utils/useCatalog";
 import { syncMedia, type PendingFiles } from "../utils/mediaSync";
+import { coordsFromMapsUrl } from "../utils/mapsUrl";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/shared/components/Button";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { Input } from "@/shared/components/Input";
-import { PlaceMap } from "@/shared/components/PlaceMap";
 import { ListIcon } from "@/shared/components/icons";
 import {
   createExperienceAdmin,
@@ -1198,31 +1198,30 @@ export function EditListingScreen({ id }: Props) {
               value={form.placeNeighborhood}
               onChange={(e) => patchField("placeNeighborhood", e.target.value)}
             />
-            <Input
-              label="Lat"
-              inputMode="decimal"
-              value={form.placeLat}
-              onChange={(e) => patchField("placeLat", e.target.value)}
-            />
-            <Input
-              label="Lng"
-              inputMode="decimal"
-              value={form.placeLng}
-              onChange={(e) => patchField("placeLng", e.target.value)}
-            />
+            <div className={styles.full}>
+              <Input
+                label="Map link"
+                type="url"
+                value={form.mapsUrl}
+                placeholder="Paste the Google Maps link for this place"
+                onChange={(e) => {
+                  const url = e.target.value;
+                  patchField("mapsUrl", url);
+                  // The pin position is read from the link when it has one, so there is no lat/lng to type.
+                  const at = coordsFromMapsUrl(url);
+                  if (at) {
+                    patchField("placeLat", String(at.lat));
+                    patchField("placeLng", String(at.lng));
+                  }
+                }}
+              />
+              <p className={`t-body-sm ${styles.hint}`}>Guests open this link for the pin and directions.</p>
+            </div>
             <div className={styles.full}>
               <Input
                 label="Meeting point"
                 value={form.meetingPoint}
                 onChange={(e) => patchField("meetingPoint", e.target.value)}
-              />
-            </div>
-            <div className={styles.full}>
-              <p className={styles.textareaLabel}>Map pin</p>
-              <PlaceMap
-                lat={Number(form.placeLat)}
-                lng={Number(form.placeLng)}
-                label={`${form.placeName || "Listing"} map pin`}
               />
             </div>
           </div>
@@ -1351,15 +1350,9 @@ export function EditListingScreen({ id }: Props) {
         <div id="sec-links" className={styles.section} hidden={!showSec("links")}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Links</h2>
           <p className={`t-body-sm ${styles.hint}`}>
-            Paste maps, menu, WhatsApp, or Instagram URLs from the sheet.
+            Paste menu, WhatsApp, or Instagram URLs from the sheet. The map link is under Place.
           </p>
           <div className={styles.grid2}>
-            <Input
-              label="Maps URL"
-              type="url"
-              value={form.mapsUrl}
-              onChange={(e) => patchField("mapsUrl", e.target.value)}
-            />
             <Input
               label="Menu URL"
               type="url"
