@@ -5,5 +5,5 @@ type Props = { params: Promise<{ id: string }> };
 /** Full-screen editor: it has its own top bar, so no AdminShell. */
 export default async function EditListingPage({ params }: Props) {
   const { id } = await params;
-  return <EditListingScreen id={id} />;
+  return <EditListingScreen key={id} id={id} />;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { patchExperienceLocal } from "@/shared/utils/useCatalog";
+import { patchExperienceLocal, useCatalog } from "@/shared/utils/useCatalog";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/shared/components/Button";
@@ -301,6 +301,7 @@ export function EditListingScreen({ id }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [tagDraft, setTagDraft] = useState("");
   const [dirty, setDirty] = useState(false);
+  const { experiences } = useCatalog();
 
   const [sel, setSel] = useState<Sel>(null);
   const [tab, setTab] = useState<"widgets" | "edit">("edit");
@@ -641,7 +642,25 @@ export function EditListingScreen({ id }: Props) {
           discovr<span className={styles2.logoTag}>Admin</span>
         </div>
         <div className={styles2.crumb}>
-          / <span className={styles2.crumbTitle}>{form.title.trim() || "Untitled listing"}</span>
+          /{" "}
+          <select
+            className={styles2.crumbSelect}
+            aria-label="Listing"
+            value={id}
+            onChange={(e) => {
+              if (dirty && !window.confirm("You have unsaved changes. Leave this listing without saving?")) return;
+              router.push(`/listings/${e.target.value}`);
+            }}
+          >
+            {/* The open listing shows its live name, so a rename is visible before you save. */}
+            {[{ id, title: form.title.trim() || "Untitled listing" }, ...(experiences ?? []).filter((x) => x.id !== id)]
+              .sort((a, b) => a.title.localeCompare(b.title))
+              .map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.title}
+                </option>
+              ))}
+          </select>
           <span className={`${styles2.pill} ${form.status === "published" ? styles2.pillLive : ""}`}>{form.status}</span>
         </div>
         <div className={styles2.spacer} />
