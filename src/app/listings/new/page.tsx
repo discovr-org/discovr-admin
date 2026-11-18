@@ -1,14 +1,6 @@
-import { AddListingScreen } from "@/features/listings/components/AddListingScreen";
-import { AdminShell } from "@/features/shell/components/AdminShell";
+import { EditListingScreen } from "@/features/listings/components/EditListingScreen";
 
+/** A new listing opens the full editor. Nothing is created until Save changes. */
 export default function NewListingPage() {
-  return (
-    <AdminShell
-      title="Add listing"
-      subtitle="Starts as a draft unless you set it active."
-      showPrimaryAction={false}
-    >
-      <AddListingScreen />
-    </AdminShell>
-  );
+  return <EditListingScreen id={null} />;
 }

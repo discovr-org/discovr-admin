@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { patchExperienceLocal, useCatalog } from "@/shared/utils/useCatalog";
+import { syncMedia, type PendingFiles } from "../utils/mediaSync";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/shared/components/Button";
@@ -10,7 +11,10 @@ import { Input } from "@/shared/components/Input";
 import { PlaceMap } from "@/shared/components/PlaceMap";
 import { ListIcon } from "@/shared/components/icons";
 import {
+  createExperienceAdmin,
   deleteExperienceAdmin,
+  fetchHosts,
+  type CatalogHostSummary,
   type ExperienceAdminPatch,
   fetchExperienceAdmin,
   patchExperienceAdmin,
@@ -37,7 +41,8 @@ import { PaneHead } from "./PaneHead";
 import { StoryContentFields } from "./StoryContentFields";
 import { WidgetLibrary } from "./WidgetLibrary";
 
-type Props = { id: string };
+/** `id` null = a new listing: nothing exists on the server until the first Save changes. */
+type Props = { id: string | null };
 
 type LinkKey = keyof NonNullable<ExperienceContent["links"]>;
 type BookVia = NonNullable<ExperienceContent["bookVia"]>;
@@ -302,6 +307,42 @@ export function buildPatch(form: FormState): ExperienceAdminPatch & { categoryId
   };
 }
 
+const slugFromTitle = (title: string) =>
+  title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+
+/** What an empty new listing starts as. */
+function blankRow(): CatalogExperienceAdmin {
+  return {
+    id: "",
+    slug: "",
+    title: "",
+    status: "draft",
+    verdict: "",
+    about: "",
+    placeName: "",
+    placeNeighborhood: "",
+    placeLat: 15.49,
+    placeLng: 73.82,
+    priceFromInr: 0,
+    durationMinutes: 120,
+    groupSizeMax: 10,
+    groupSizeLabel: "",
+    hostId: "",
+    hostBusinessName: "",
+    photos: [],
+    menuPages: [],
+    tags: [],
+    schedule: {},
+    policy: null,
+    content: {},
+  };
+}
+
 /** Older API builds omit these lists. */
 function listingMedia(row: CatalogExperienceAdmin) {
   return { photos: row.photos ?? [], menuPages: row.menuPages ?? [] };
@@ -316,13 +357,22 @@ export function EditListingScreen({ id }: Props) {
     photos: [],
     menuPages: [],
   });
+  // What the server has, and what is on screen. Photos and menu pages only reach the server on Save changes.
+  const [savedMedia, setSavedMedia] = useState<Pick<CatalogExperienceAdmin, "photos" | "menuPages">>({ photos: [], menuPages: [] });
+  const [files] = useState<PendingFiles>(() => new Map());
+  const isNew = id === null;
+  const [hosts, setHosts] = useState<CatalogHostSummary[]>([]);
+  const [hostId, setHostId] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [tagDraft, setTagDraft] = useState("");
   const [dirty, setDirty] = useState(false);
-  const { experiences } = useCatalog();
+  const { experiences, reload } = useCatalog();
+  // A new listing has nothing to preview on yet, so the page borrows the first live listing.
+  const previewId = id ?? (experiences ?? []).find((x) => x.status === "published")?.id ?? experiences?.[0]?.id ?? "";
   const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
 
   const [sel, setSel] = useState<Sel>(null);
   const [tab, setTab] = useState<"widgets" | "edit">("edit");
@@ -387,7 +437,12 @@ export function EditListingScreen({ id }: Props) {
 
   useEffect(() => {
     // Before the categories migration the list can't load; the editor then works as it always has.
-    fetchCategories().then(setCategories).catch(() => setCategories([]));
+    fetchCategories()
+      .then(setCategories)
+      .catch((err: unknown) => {
+        setCategories([]);
+        setCategoriesError(err instanceof Error ? err.message : "Couldn't load categories.");
+      });
   }, []);
 
   // Picking a layout block jumps to the field it reads, since several fields share one editor card.
@@ -410,12 +465,26 @@ export function EditListingScreen({ id }: Props) {
 
   useEffect(() => {
     let cancelled = false;
+    if (id === null) {
+      fetchHosts()
+        .then(({ hosts: list }) => {
+          if (cancelled) return;
+          setHosts(list);
+          setHostId(list[0]?.id ?? "");
+          setForm(toForm(blankRow()));
+        })
+        .catch((err: unknown) => !cancelled && setLoadError(err instanceof Error ? err.message : "Couldn't load hosts."));
+      return () => {
+        cancelled = true;
+      };
+    }
     fetchExperienceAdmin(id)
       .then((row) => {
         if (cancelled) return;
         setForm(toForm(row));
         setHostLabel(row.hostBusinessName);
         setMedia(listingMedia(row));
+        setSavedMedia(listingMedia(row));
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -531,12 +600,51 @@ export function EditListingScreen({ id }: Props) {
       return;
     }
 
+    if (isNew && !hostId) {
+      toast.error("Pick a host.");
+      return;
+    }
+
     setSaving(true);
+    let listingId = id;
     try {
-      const saved = await patchExperienceAdmin(id, buildPatch(form));
+      if (listingId === null) {
+        const created = await createExperienceAdmin({
+          title: form.title.trim(),
+          slug: form.slug.trim() || slugFromTitle(form.title),
+          hostId,
+          status: "draft",
+          about: "",
+          placeName: form.placeName.trim() || "To be added",
+          placeNeighborhood: form.placeNeighborhood.trim() || "Goa",
+          placeLat: Number(form.placeLat) || 15.49,
+          placeLng: Number(form.placeLng) || 73.82,
+        });
+        listingId = created.id;
+        void reload();
+      }
+      const saved = await patchExperienceAdmin(listingId, buildPatch(form));
+      let nextMedia = savedMedia;
+      try {
+        const row = await syncMedia(listingId, savedMedia, media, files);
+        if (row) nextMedia = row;
+        files.clear();
+      } catch (err: unknown) {
+        // The listing itself saved; keep the picked images on screen so Save changes can try them again.
+        toast.error(`Saved, but the images didn't: ${err instanceof Error ? err.message : "upload failed."}`);
+        if (isNew) router.replace(`/listings/${listingId}`);
+        return;
+      }
+      if (isNew) {
+        toast.success("Listing created.");
+        router.replace(`/listings/${listingId}`);
+        return;
+      }
       setForm(toForm(saved));
+      setMedia(nextMedia);
+      setSavedMedia(nextMedia);
       setDirty(false);
-      patchExperienceLocal(id, {
+      patchExperienceLocal(listingId, {
         title: saved.title,
         slug: saved.slug,
         status: saved.status,
@@ -546,13 +654,21 @@ export function EditListingScreen({ id }: Props) {
       });
       toast.success("Saved.");
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Couldn't save.");
+      if (isNew && listingId !== null) {
+        toast.error("The listing was created but some changes didn't save. Save again to finish.");
+        router.replace(`/listings/${listingId}`);
+      } else toast.error(err instanceof Error ? err.message : "Couldn't save.");
     } finally {
       setSaving(false);
     }
   }
 
   async function onDelete() {
+    if (id === null) {
+      if (dirty && !window.confirm(LOSE_CHANGES)) return;
+      router.push("/listings");
+      return;
+    }
     if (
       !window.confirm(
         "Delete this listing for good? Photos and tags go with it.",
@@ -697,6 +813,7 @@ export function EditListingScreen({ id }: Props) {
         </div>
         <div className={styles2.crumb}>
           /{" "}
+          {isNew ? <span>{form.title.trim() || "New listing"}</span> : (
           <select
             className={styles2.crumbSelect}
             aria-label="Listing"
@@ -707,7 +824,7 @@ export function EditListingScreen({ id }: Props) {
             }}
           >
             {/* The open listing shows its live name, so a rename is visible before you save. */}
-            {[{ id, title: form.title.trim() || "Untitled listing" }, ...(experiences ?? []).filter((x) => x.id !== id)]
+            {[{ id: id ?? "", title: form.title.trim() || "Untitled listing" }, ...(experiences ?? []).filter((x) => x.id !== id)]
               .sort((a, b) => a.title.localeCompare(b.title))
               .map((x) => (
                 <option key={x.id} value={x.id}>
@@ -715,11 +832,12 @@ export function EditListingScreen({ id }: Props) {
                 </option>
               ))}
           </select>
+          )}
           <span className={`${styles2.pill} ${form.status === "published" ? styles2.pillLive : ""}`}>{form.status}</span>
         </div>
         <div className={styles2.spacer} />
         <span className={styles2.saveState} role="status">
-          {dirty ? "Unsaved changes" : "All changes saved"}
+          {dirty ? "Unsaved changes" : isNew ? "Not saved yet" : "All changes saved"}
         </span>
         <button type="button" className={styles2.ibtn} aria-label="Undo" title="Undo (⌘Z)" disabled={past.length === 0} onClick={undo}>
           <Ic name="undo" size={17} />
@@ -729,7 +847,7 @@ export function EditListingScreen({ id }: Props) {
         </button>
         <button type="button" className={`${styles2.btn} ${styles2.btnDanger}`} onClick={onDelete} disabled={saving || deleting}>
           <Ic name="trash" size={15} />
-          {deleting ? "Deleting…" : "Delete"}
+          {isNew ? "Discard" : deleting ? "Deleting…" : "Delete"}
         </button>
         <button type="submit" form="listing-form" className={`${styles2.btn} ${styles2.btnPrimary}`} disabled={saving || deleting}>
           {saving ? "Saving…" : "Save changes"}
@@ -902,16 +1020,35 @@ export function EditListingScreen({ id }: Props) {
             <form id="listing-form" className={`${styles2.paneInner} ${styles.editForm}`} onSubmit={onSave} hidden={tab !== "edit" || formKeys.length === 0}>
         <div id="sec-photos" className={styles.group} hidden={!showSec("photos")}>
         <ListingPhotos
-          experienceId={id}
           title={form.title.trim()}
           photos={media.photos}
           menuPages={media.menuPages}
-          onSaved={(row) => setMedia(listingMedia(row))}
+          files={files}
+          onChange={(next) => {
+            setMedia((m) => ({ ...m, ...next }));
+            touch();
+          }}
         />
         </div>
         <div id="sec-basics" className={styles.section} hidden={!showSec("basics")}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Basics</h2>
           <div className={styles.grid2}>
+            {isNew ? (
+              <div className={`${styles.selectField} ${styles.full}`}>
+                <label className={styles.textareaLabel} htmlFor="listing-host">
+                  Host
+                </label>
+                <select id="listing-host" className={styles.select} value={hostId} onChange={(e) => { setHostId(e.target.value); touch(); }}>
+                  {hosts.length === 0 ? <option value="">No hosts yet</option> : null}
+                  {hosts.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.businessName}
+                      {h.active ? "" : " (inactive)"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <div className={`${styles.selectField} ${styles.full}`}>
               <label className={styles.textareaLabel} htmlFor="listing-category">
                 Category
@@ -936,7 +1073,13 @@ export function EditListingScreen({ id }: Props) {
                   </option>
                 ))}
               </select>
-              <p className={`t-body-sm ${styles.hint}`}>A category fixes the page layout. You fill in the content.</p>
+              <p className={`t-body-sm ${styles.hint}`} role={categoriesError ? "alert" : undefined}>
+                {categoriesError
+                  ? `Couldn't load categories: ${categoriesError}`
+                  : categories.length === 0
+                    ? "No categories yet. Make one under Categories, then pick it here."
+                    : "A category fixes the page layout. You fill in the content."}
+              </p>
             </div>
             <Input
               label="Title"
@@ -1534,8 +1677,9 @@ export function EditListingScreen({ id }: Props) {
               </button>
             )}
           </div>
+          {previewId ? (
           <LivePreview
-            id={id}
+            id={previewId}
             draft={buildPatch(form)}
             mediaKey={media.photos.map((ph) => `${ph.id}${ph.src}${ph.isCover}`).join() + media.menuPages.map((m) => `${m.id}${m.src}`).join()}
             selected={pvId(sel)}
@@ -1561,6 +1705,11 @@ export function EditListingScreen({ id }: Props) {
               else toggleSection(pv.slice(5) as SectionState["id"]);
             }}
           />
+          ) : (
+            <p className={styles2.s} role="status">
+              The preview needs one existing listing to draw on. Save this listing first.
+            </p>
+          )}
         </section>
       </div>
     </div>
