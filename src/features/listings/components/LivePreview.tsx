@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ExperienceAdminPatch } from "@/shared/utils/catalogApi";
-import { guestOrigin, previewExperienceAdmin } from "../utils/previewApi";
+import { GUEST_URL } from "@/shared/utils/constants";
+import { previewExperienceAdmin } from "../utils/previewApi";
 import styles from "../styles/ListingEditor.module.css";
 
 export type PreviewEvents = {
@@ -37,7 +38,7 @@ export function LivePreview({ id, draft, selected, hover, arranging, scrollTo, .
   const handlers = useRef(events);
   const [scale, setScale] = useState(1);
   const [status, setStatus] = useState<"loading" | "updating" | "ok" | "error">("loading");
-  const origin = useMemo(() => guestOrigin(), []);
+  const origin = GUEST_URL;
   const draftKey = JSON.stringify(draft);
 
   useEffect(() => {
