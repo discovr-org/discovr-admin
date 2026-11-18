@@ -7,7 +7,8 @@ export type CatalogExperienceSummary = {
   status: "draft" | "published" | "archived";
   verdict: string;
   priceFromInr: number;
-  hostId: string;
+  /** `null` = no host. */
+  hostId: string | null;
   hostBusinessName: string;
   hostActive: boolean;
   placeNeighborhood: string;
@@ -61,8 +62,14 @@ export type ExperienceContent = {
   tagsOnDisplay?: string[];
   faqs?: Array<{ q: string; a: string }>;
   [key: string]: unknown;
-  /** "link" = the book button opens `links.book`; otherwise it calls the host. */
-  bookVia?: "call" | "link";
+  /** "link" = the button opens `links.book` as "Book on <host>"; "custom" = same URL with `bookLabel`; otherwise it calls. */
+  bookVia?: "call" | "link" | "custom";
+  /** The label on the custom button. */
+  bookLabel?: string;
+  /** Replaces the left text of the booking bar ("From ₹300"). Empty = the price. */
+  barText?: string;
+  /** Small line under it. Empty = the unit ("per person"). */
+  barNote?: string;
   /** true = the app skips photo blocks in the story. */
   hideStoryPhotos?: boolean;
   links?: {
@@ -113,7 +120,7 @@ export type CatalogExperienceAdmin = {
   durationMinutes: number;
   groupSizeMax: number;
   groupSizeLabel: string;
-  hostId: string;
+  hostId: string | null;
   hostBusinessName: string;
   coverPhotoUrl?: string;
   coverPhotoAlt?: string;
@@ -130,6 +137,7 @@ export type ListingPhoto = { id: string; src: string; alt: string; isCover: bool
 export type ListingMenuPage = { id: string; src: string; label: string; alt: string };
 
 export type ExperienceAdminPatch = Partial<{
+  hostId: string | null;
   title: string;
   slug: string;
   status: CatalogExperienceAdmin["status"];
@@ -152,7 +160,8 @@ export type ExperienceAdminPatch = Partial<{
 export type ExperienceAdminCreate = {
   title: string;
   slug?: string;
-  hostId: string;
+  /** Optional: a listing can have no host. */
+  hostId?: string | null;
   status?: CatalogExperienceAdmin["status"];
   verdict?: string | null;
   about?: string;

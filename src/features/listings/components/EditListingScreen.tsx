@@ -101,6 +101,12 @@ export type FormState = {
   menuUrl: string;
   bookVia: BookVia;
   bookUrl: string;
+  bookLabel: string;
+  barText: string;
+  barNote: string;
+  /** "" = no host. `hostWas` is what is saved, so a plain save sends nothing about it. */
+  hostId: string;
+  hostWas: string;
   whatsappUrl: string;
   instagramUrl: string;
   /** The category whose layout this listing uses, and what is saved (so a plain save sends nothing about it). */
@@ -180,8 +186,13 @@ function toForm(row: CatalogExperienceAdmin): FormState {
     faqs: (c.faqs ?? []).map((f) => ({ q: f.q, a: f.a })),
     mapsUrl: c.links?.maps?.url ?? "",
     menuUrl: c.links?.menu?.url ?? "",
-    bookVia: c.bookVia === "link" ? "link" : "call",
+    bookVia: c.bookVia === "link" ? "link" : c.bookVia === "custom" ? "custom" : "call",
     bookUrl: c.links?.book?.url ?? "",
+    bookLabel: c.bookLabel ?? "",
+    barText: c.barText ?? "",
+    barNote: c.barNote ?? "",
+    hostId: row.hostId ?? "",
+    hostWas: row.hostId ?? "",
     whatsappUrl: c.links?.whatsapp?.url ?? "",
     instagramUrl: c.links?.instagram?.url ?? "",
     categoryId: (row as CatalogExperienceAdmin & { categoryId?: string | null }).categoryId ?? null,
@@ -235,6 +246,9 @@ function buildContent(form: FormState): ExperienceContent {
       .filter((f) => f.q || f.a),
     links: Object.keys(links).length ? links : undefined,
     bookVia: form.bookVia,
+    bookLabel: form.bookVia === "custom" ? form.bookLabel.trim() || undefined : undefined,
+    barText: form.barText.trim() || undefined,
+    barNote: form.barNote.trim() || undefined,
   };
 }
 
@@ -302,6 +316,7 @@ export function buildPatch(form: FormState): ExperienceAdminPatch & { categoryId
       showFinalTermsNote: form.showFinalTermsNote,
     },
     content: buildContent(form),
+    ...(form.hostId !== form.hostWas ? { hostId: form.hostId || null } : {}),
     // Sent only when it matters, so listings without a category save exactly as before.
     ...(form.categoryId || form.categoryId !== form.categoryWas ? { categoryId: form.categoryId } : {}),
   };
@@ -362,7 +377,6 @@ export function EditListingScreen({ id }: Props) {
   const [files] = useState<PendingFiles>(() => new Map());
   const isNew = id === null;
   const [hosts, setHosts] = useState<CatalogHostSummary[]>([]);
-  const [hostId, setHostId] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -470,7 +484,6 @@ export function EditListingScreen({ id }: Props) {
         .then(({ hosts: list }) => {
           if (cancelled) return;
           setHosts(list);
-          setHostId(list[0]?.id ?? "");
           setForm(toForm(blankRow()));
         })
         .catch((err: unknown) => !cancelled && setLoadError(err instanceof Error ? err.message : "Couldn't load hosts."));
@@ -478,6 +491,9 @@ export function EditListingScreen({ id }: Props) {
         cancelled = true;
       };
     }
+    fetchHosts()
+      .then(({ hosts: list }) => !cancelled && setHosts(list))
+      .catch(() => undefined); // the listing still opens; the host list just stays empty
     fetchExperienceAdmin(id)
       .then((row) => {
         if (cancelled) return;
@@ -599,11 +615,11 @@ export function EditListingScreen({ id }: Props) {
       toast.error("Add the booking page URL, or switch to Call the host.");
       return;
     }
-
-    if (isNew && !hostId) {
-      toast.error("Pick a host.");
+    if (form.bookVia === "custom" && (!form.bookUrl.trim() || !form.bookLabel.trim())) {
+      toast.error("Add the button label and its URL, or pick another way to book.");
       return;
     }
+
 
     setSaving(true);
     let listingId = id;
@@ -612,7 +628,7 @@ export function EditListingScreen({ id }: Props) {
         const created = await createExperienceAdmin({
           title: form.title.trim(),
           slug: form.slug.trim() || slugFromTitle(form.title),
-          hostId,
+          hostId: form.hostId || null,
           status: "draft",
           about: "",
           placeName: form.placeName.trim() || "To be added",
@@ -1033,22 +1049,21 @@ export function EditListingScreen({ id }: Props) {
         <div id="sec-basics" className={styles.section} hidden={!showSec("basics")}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Basics</h2>
           <div className={styles.grid2}>
-            {isNew ? (
-              <div className={`${styles.selectField} ${styles.full}`}>
-                <label className={styles.textareaLabel} htmlFor="listing-host">
-                  Host
-                </label>
-                <select id="listing-host" className={styles.select} value={hostId} onChange={(e) => { setHostId(e.target.value); touch(); }}>
-                  {hosts.length === 0 ? <option value="">No hosts yet</option> : null}
-                  {hosts.map((h) => (
-                    <option key={h.id} value={h.id}>
-                      {h.businessName}
-                      {h.active ? "" : " (inactive)"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
+            <div className={`${styles.selectField} ${styles.full}`}>
+              <label className={styles.textareaLabel} htmlFor="listing-host">
+                Host
+              </label>
+              <select id="listing-host" className={styles.select} value={form.hostId} onChange={(e) => patchField("hostId", e.target.value)}>
+                <option value="">No host</option>
+                {hosts.map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.businessName}
+                    {h.active ? "" : " (inactive)"}
+                  </option>
+                ))}
+              </select>
+              <p className={`t-body-sm ${styles.hint}`}>{form.hostId ? "The host card and the Call button use this host." : "No host card or host name on the page. Calling uses the first number under Phones."}</p>
+            </div>
             <div className={`${styles.selectField} ${styles.full}`}>
               <label className={styles.textareaLabel} htmlFor="listing-category">
                 Category
@@ -1396,21 +1411,49 @@ export function EditListingScreen({ id }: Props) {
               />
               <span>Host&apos;s booking page</span>
             </label>
+            <label className={styles.checkRow}>
+              <input
+                type="radio"
+                name="book-via"
+                checked={form.bookVia === "custom"}
+                onChange={() => patchField("bookVia", "custom")}
+              />
+              <span>Custom button (your own label and link)</span>
+            </label>
           </fieldset>
           {form.bookVia === "call" ? (
             <p className={`t-body-sm ${styles.hint}`}>
-              The button calls {hostLabel || "the host"}&apos;s number from Hosts.
+              {form.hostId ? `The button calls ${hosts.find((h) => h.id === form.hostId)?.businessName ?? hostLabel ?? "the host"}'s number from Hosts.` : "The button calls the first number under Phones. With none, there is no button."}
             </p>
           ) : (
-            <Input
-              label="Booking page URL"
-              type="url"
-              value={form.bookUrl}
-              onChange={(e) => patchField("bookUrl", e.target.value)}
-              hint="The button opens this page."
-              required
-            />
+            <>
+              {form.bookVia === "custom" ? (
+                <Input label="Button label" value={form.bookLabel} onChange={(e) => patchField("bookLabel", e.target.value)} placeholder="Reserve a table" hint="The text on the button." required />
+              ) : null}
+              <Input
+                label={form.bookVia === "custom" ? "Button link" : "Booking page URL"}
+                type="url"
+                value={form.bookUrl}
+                onChange={(e) => patchField("bookUrl", e.target.value)}
+                hint="The button opens this page."
+                required
+              />
+            </>
           )}
+          <Input
+            label="Left text (optional)"
+            value={form.barText}
+            onChange={(e) => patchField("barText", e.target.value)}
+            placeholder="From ₹300"
+            hint="Shown left of the button. Empty shows the price."
+          />
+          <Input
+            label="Small line under it (optional)"
+            value={form.barNote}
+            onChange={(e) => patchField("barNote", e.target.value)}
+            placeholder="per person"
+            hint="Empty shows the unit, like per person."
+          />
         </div>
 
         <div id="sec-faqs" className={styles.section} hidden={!showSec("faqs")}>
