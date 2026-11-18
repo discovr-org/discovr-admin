@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { BLOCK_ICON, PART_ICON } from "../utils/layerIcons";
+import { PART_ICON } from "../utils/layerIcons";
 import { PART_META, type FixedId, type PartId, type SectionState } from "../utils/pageLayout";
-import { BLOCK_LABEL, blockLabel, type StoryBlock } from "../utils/storyBlocks";
 import styles from "../styles/ListingEditor.module.css";
-import { Ic } from "./EditorIcon";
+import { Ic, type IconName } from "./EditorIcon";
+
+/** One story row in Layers. Listings and categories both map their blocks to this. */
+export type LayerItem = { label: string; type: string; icon: IconName; half?: boolean; hidden?: boolean };
 
 export type Sel = { kind: "part"; id: PartId } | { kind: "block"; index: number } | null;
 
@@ -15,7 +17,9 @@ type Props = {
   /** Preview id (`part:x` / `block:n`) the pointer is over, in the phone or in this list. */
   hover: string | null;
   onHover: (id: string | null) => void;
-  blocks: StoryBlock[];
+  items: LayerItem[];
+  /** A listing that uses a category: its layout is shown but can only be edited in the category. */
+  locked?: boolean;
   order: SectionState[];
   fixed: Record<"more" | "booking", boolean>;
   venue: boolean;
@@ -109,15 +113,16 @@ export function ListingLayers(p: Props) {
     );
   };
 
-  const blockRow = (b: StoryBlock, i: number) => {
+  const blockRow = (b: LayerItem, i: number) => {
     const on = p.sel?.kind === "block" && p.sel.index === i;
-    const hidden = b.show === false;
+    const hidden = b.hidden === true;
     const cls = [
       styles.layer,
       on ? styles.layerOn : "",
       hidden ? styles.layerHidden : "",
       p.hover === `block:${i}` ? styles.layerHl : "",
       over === `b${i}` ? styles.layerOver : "",
+      p.locked ? styles.noGrip : "",
     ].join(" ");
     return (
       <li
@@ -125,16 +130,18 @@ export function ListingLayers(p: Props) {
         className={cls}
         onMouseEnter={() => p.onHover(`block:${i}`)}
         onMouseLeave={() => p.onHover(null)}
-        draggable
+        draggable={!p.locked}
         onDragStart={(e) => {
           e.dataTransfer.effectAllowed = "move";
           setDragBlock(i);
         }}
         onDragOver={(e) => {
+          if (p.locked) return;
           e.preventDefault();
           setOver(`b${i}`);
         }}
         onDrop={(e) => {
+          if (p.locked) return;
           const w = e.dataTransfer.getData("text/widget");
           if (w) p.onDropWidget(Number(w), i);
           else if (dragBlock !== null) p.onMoveBlock(dragBlock, i);
@@ -145,45 +152,51 @@ export function ListingLayers(p: Props) {
         <span className={styles.grip}>
           <Ic name="grip" size={14} />
         </span>
-        <button type="button" className={`${styles.layerMain} ${styles.layerDrag}`} aria-pressed={on} onClick={() => p.onSel({ kind: "block", index: i })}>
+        <button type="button" className={`${styles.layerMain} ${p.locked ? "" : styles.layerDrag}`} aria-pressed={on} onClick={() => p.onSel({ kind: "block", index: i })}>
           <span className={styles.lic}>
-            <Ic name={BLOCK_ICON[b.type] ?? "type"} size={15} />
+            <Ic name={b.icon} size={15} />
           </span>
           <span className={styles.ltxt}>
-            <div className={styles.lname}>{blockLabel(b)}</div>
+            <div className={styles.lname}>{b.label}</div>
             <div className={styles.ltype}>
-              {BLOCK_LABEL[b.type] ?? b.type}
-              {b.size === "half" ? <span className={styles.chip}>½ width</span> : null}
+              {b.type}
+              {b.half ? <span className={styles.chip}>½ width</span> : null}
               {hidden ? <span className={styles.chip}>hidden</span> : null}
             </div>
           </span>
         </button>
-        <span className={`${styles.lacts} ${hidden ? styles.lactsShow : ""}`}>
-          <button type="button" className={styles.ibtn} aria-label={`${hidden ? "Show" : "Hide"} ${blockLabel(b)}`} title={hidden ? "Show" : "Hide"} onClick={() => p.onToggleBlock(i)}>
-            <Ic name={hidden ? "eyeoff" : "eye"} size={15} />
-          </button>
-          <button type="button" className={styles.ibtn} aria-label="Duplicate" title="Duplicate" onClick={() => p.onDuplicate(i)}>
-            <Ic name="copy" size={14} />
-          </button>
-          <button type="button" className={styles.ibtn} aria-label="Delete" title="Delete" onClick={() => p.onDelete(i)}>
-            <Ic name="trash" size={14} />
-          </button>
-        </span>
+        {p.locked ? null : (
+          <span className={`${styles.lacts} ${hidden ? styles.lactsShow : ""}`}>
+            <button type="button" className={styles.ibtn} aria-label={`${hidden ? "Show" : "Hide"} ${b.label}`} title={hidden ? "Show" : "Hide"} onClick={() => p.onToggleBlock(i)}>
+              <Ic name={hidden ? "eyeoff" : "eye"} size={15} />
+            </button>
+            <button type="button" className={styles.ibtn} aria-label="Duplicate" title="Duplicate" onClick={() => p.onDuplicate(i)}>
+              <Ic name="copy" size={14} />
+            </button>
+            <button type="button" className={styles.ibtn} aria-label="Delete" title="Delete" onClick={() => p.onDelete(i)}>
+              <Ic name="trash" size={14} />
+            </button>
+          </span>
+        )}
       </li>
     );
   };
 
   const rows: React.ReactNode[] = [partRow("gallery", { locked: true })];
   p.order.forEach((s, i) => {
-    rows.push(partRow(s.id, { show: s.show, onToggle: () => p.onToggleSection(s.id), drag: i }));
+    rows.push(partRow(s.id, p.locked ? { show: s.show } : { show: s.show, onToggle: () => p.onToggleSection(s.id), drag: i }));
     if (s.id === "about") {
-      if (p.blocks.length === 0) {
+      if (p.items.length === 0) {
         rows.push(
           <li key="story-empty" className={styles.paneInnerTight}>
             <p className={styles.note}>
-              {p.venue ? "Places build the story from the fields, so custom blocks aren't used." : "The story is built from the fields. Start a custom story to reorder it and add blocks."}
+              {p.locked
+                ? "This category has no story blocks yet. Add some in Categories."
+                : p.venue
+                  ? "Places build the story from the fields, so custom blocks aren't used."
+                  : "The story is built from the fields. Start a custom story to reorder it and add blocks."}
             </p>
-            {p.venue ? null : (
+            {p.venue || p.locked ? null : (
               <button type="button" className={styles.addBtn} onClick={p.onStart}>
                 <Ic name="plus" size={14} /> Start a custom story
               </button>
@@ -191,7 +204,8 @@ export function ListingLayers(p: Props) {
           </li>,
         );
       } else {
-        p.blocks.forEach((b, j) => rows.push(blockRow(b, j)));
+        p.items.forEach((b, j) => rows.push(blockRow(b, j)));
+        if (!p.locked)
         rows.push(
           <li
             key="story-add"
@@ -199,7 +213,7 @@ export function ListingLayers(p: Props) {
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               const w = e.dataTransfer.getData("text/widget");
-              if (w) p.onDropWidget(Number(w), p.blocks.length);
+              if (w) p.onDropWidget(Number(w), p.items.length);
               clear();
             }}
           >
@@ -211,9 +225,9 @@ export function ListingLayers(p: Props) {
       }
     }
   });
-  rows.push(partRow("more", { show: p.fixed.more, onToggle: () => p.onToggleFixed("more") }));
+  rows.push(partRow("more", p.locked ? { show: p.fixed.more } : { show: p.fixed.more, onToggle: () => p.onToggleFixed("more") }));
 
-  const hiddenCount = p.order.filter((s) => !s.show).length + (p.fixed.more ? 0 : 1) + (p.fixed.booking ? 0 : 1) + p.blocks.filter((b) => b.show === false).length;
+  const hiddenCount = p.order.filter((s) => !s.show).length + (p.fixed.more ? 0 : 1) + (p.fixed.booking ? 0 : 1) + p.items.filter((b) => b.hidden).length;
 
   return (
     <aside className={styles.colWrap} aria-label="Layers">
@@ -221,13 +235,15 @@ export function ListingLayers(p: Props) {
         <div>
           <h2>Layers</h2>
           <p>
-            {p.order.length + 3} parts · {p.blocks.length} story {p.blocks.length === 1 ? "block" : "blocks"}
+            {p.order.length + 3} parts · {p.items.length} story {p.items.length === 1 ? "block" : "blocks"}
             {hiddenCount ? ` · ${hiddenCount} hidden` : ""}
           </p>
         </div>
-        <button type="button" className={`${styles.btn} ${styles.btnSm}`} onClick={p.onAdd}>
-          <Ic name="plus" size={14} /> Add
-        </button>
+        {p.locked ? null : (
+          <button type="button" className={`${styles.btn} ${styles.btnSm}`} onClick={p.onAdd}>
+            <Ic name="plus" size={14} /> Add
+          </button>
+        )}
       </div>
       <div className={styles.scroll}>
         <ul className={styles.layers}>{rows}</ul>
@@ -237,10 +253,16 @@ export function ListingLayers(p: Props) {
           {partRow("tags", {})}
         </ul>
         <div className={styles.sub}>Pinned</div>
-        <ul className={styles.layers}>{partRow("booking", { show: p.fixed.booking, onToggle: () => p.onToggleFixed("booking") })}</ul>
+        <ul className={styles.layers}>{partRow("booking", p.locked ? { show: p.fixed.booking } : { show: p.fixed.booking, onToggle: () => p.onToggleFixed("booking") })}</ul>
       </div>
       <div className={styles.hintFoot}>
-        <b>Drag</b> rows to reorder. In the preview, <b>hold a part</b> to make it jiggle, then drag it up or down.
+        {p.locked ? (
+          <>This listing uses a <b>category</b> layout. Click a block to fill in its content. Change the layout in Categories.</>
+        ) : (
+          <>
+            <b>Drag</b> rows to reorder. In the preview, <b>hold a part</b> to make it jiggle, then drag it up or down.
+          </>
+        )}
       </div>
     </aside>
   );

@@ -1,4 +1,4 @@
-export type AdminNavId = "overview" | "listings" | "hosts" | "search";
+export type AdminNavId = "overview" | "listings" | "hosts" | "search" | "categories";
 
 export type AdminNavItem = {
   id: AdminNavId;
@@ -20,6 +20,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     items: [
       { id: "overview", href: "/", label: "Overview" },
       { id: "listings", href: "/listings", label: "Listings" },
+      { id: "categories", href: "/categories", label: "Categories" },
       { id: "hosts", href: "/hosts", label: "Hosts" },
       { id: "search", href: "/search", label: "Search" },
     ],

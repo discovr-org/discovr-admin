@@ -199,7 +199,7 @@ async function parseError(path: string, res: Response): Promise<never> {
   throw new Error(message);
 }
 
-async function requestJson<T>(
+export async function requestJson<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {

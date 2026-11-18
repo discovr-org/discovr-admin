@@ -511,3 +511,9 @@
 .group[hidden] {
   display: none;
 }
+
+.stackFields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}

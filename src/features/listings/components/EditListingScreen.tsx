@@ -28,9 +28,13 @@ import { BLOCK_LABEL, HALF_OK, blockLabel, WIDGETS, cleanBlocks, moveBlock, pars
 import { FORMS, PART_META, readFixedShown, readSections, writeSections, type PartId, type SectionState } from "../utils/pageLayout";
 import styles2 from "../styles/ListingEditor.module.css";
 import { BlockEditor } from "./BlockEditor";
-import { ListingLayers, type Sel } from "./ListingLayers";
-import { Ic, type IconName } from "./EditorIcon";
+import { ListingLayers, type LayerItem, type Sel } from "./ListingLayers";
+import { fetchCategories } from "@/features/categories/utils/categoryApi";
+import { LAYOUT_LABEL, blockSources, layoutBlockLabel, sourceForm, sourceLabel, type Category } from "@/features/categories/utils/layout";
+import { Ic } from "./EditorIcon";
 import { LivePreview } from "./LivePreview";
+import { PaneHead } from "./PaneHead";
+import { StoryContentFields } from "./StoryContentFields";
 import { WidgetLibrary } from "./WidgetLibrary";
 
 type Props = { id: string };
@@ -94,6 +98,9 @@ export type FormState = {
   bookUrl: string;
   whatsappUrl: string;
   instagramUrl: string;
+  /** The category whose layout this listing uses, and what is saved (so a plain save sends nothing about it). */
+  categoryId: string | null;
+  categoryWas: string | null;
 };
 
 function optionalLink(url: string): ContentLink | undefined {
@@ -172,6 +179,8 @@ function toForm(row: CatalogExperienceAdmin): FormState {
     bookUrl: c.links?.book?.url ?? "",
     whatsappUrl: c.links?.whatsapp?.url ?? "",
     instagramUrl: c.links?.instagram?.url ?? "",
+    categoryId: (row as CatalogExperienceAdmin & { categoryId?: string | null }).categoryId ?? null,
+    categoryWas: (row as CatalogExperienceAdmin & { categoryId?: string | null }).categoryId ?? null,
   };
 }
 
@@ -224,25 +233,31 @@ function buildContent(form: FormState): ExperienceContent {
   };
 }
 
+/** The label in the editor that belongs to each field a layout block can read, for jumping to it. */
+const FIELD_HEADING: Record<string, RegExp> = {
+  carry: /things to get/i,
+  knowBeforeYouGo: /know before you go/i,
+  included: /^what.s included/i,
+  notIncluded: /not included/i,
+  pitch: /pitch/i,
+  healthAdvisory: /health/i,
+  fitnessLevel: /fitness/i,
+  instructorRatio: /instructor/i,
+  additionalInfo: /additional info/i,
+  termsDetail: /terms detail/i,
+  priceNarrative: /price narrative/i,
+  ageGroup: /^age/i,
+  bestTime: /best time/i,
+  steps: /process steps/i,
+  packages: /packages/i,
+  "storyPhotos.0": /story photos/i,
+};
+
 /** Shown before leaving a listing that has edits not yet saved. */
 const LOSE_CHANGES = "You have unsaved changes. If you leave this listing now, you'll lose them. Leave anyway?";
 
-function PaneHead({ icon, title, sub }: { icon: IconName; title: string; sub: string }) {
-  return (
-    <div className={styles2.ihead}>
-      <span className={styles2.iheadIc}>
-        <Ic name={icon} size={20} />
-      </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <h3 className={styles2.paneTitle}>{title}</h3>
-        <p>{sub}</p>
-      </div>
-    </div>
-  );
-}
-
 /** Everything the form changes, in the shape the API takes. Used by Save and by the live preview. */
-export function buildPatch(form: FormState): ExperienceAdminPatch {
+export function buildPatch(form: FormState): ExperienceAdminPatch & { categoryId?: string | null } {
   const tags = form.tags.map((t) => t.trim()).filter(Boolean);
   return {
     title: form.title.trim(),
@@ -282,6 +297,8 @@ export function buildPatch(form: FormState): ExperienceAdminPatch {
       showFinalTermsNote: form.showFinalTermsNote,
     },
     content: buildContent(form),
+    // Sent only when it matters, so listings without a category save exactly as before.
+    ...(form.categoryId || form.categoryId !== form.categoryWas ? { categoryId: form.categoryId } : {}),
   };
 }
 
@@ -305,6 +322,7 @@ export function EditListingScreen({ id }: Props) {
   const [tagDraft, setTagDraft] = useState("");
   const [dirty, setDirty] = useState(false);
   const { experiences } = useCatalog();
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const [sel, setSel] = useState<Sel>(null);
   const [tab, setTab] = useState<"widgets" | "edit">("edit");
@@ -366,6 +384,22 @@ export function EditListingScreen({ id }: Props) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
+
+  useEffect(() => {
+    // Before the categories migration the list can't load; the editor then works as it always has.
+    fetchCategories().then(setCategories).catch(() => setCategories([]));
+  }, []);
+
+  // Picking a layout block jumps to the field it reads, since several fields share one editor card.
+  const pickedBlock = form?.categoryId && sel?.kind === "block" ? categories.find((c) => c.id === form.categoryId)?.layout.story?.[sel.index] : undefined;
+  const focusSource = pickedBlock ? blockSources(pickedBlock)[0] : undefined;
+  useEffect(() => {
+    const heading = focusSource ? FIELD_HEADING[focusSource] : undefined;
+    if (!heading) return;
+    const root = document.getElementById("listing-form");
+    const el = [...(root?.querySelectorAll("label, h3") ?? [])].find((n) => heading.test(n.textContent ?? ""));
+    el?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [focusSource, sel]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -570,9 +604,26 @@ export function EditListingScreen({ id }: Props) {
   const order = readSections(form.baseContent.sections);
   const fixed = { more: readFixedShown(form.baseContent.sections, "more"), booking: readFixedShown(form.baseContent.sections, "booking") };
   const venue = form.format === "venue";
+
+  // A listing in a category shows that category's layout, locked; ops fill in the content.
+  const locked = form.categoryId !== null;
+  const category = categories.find((c) => c.id === form.categoryId);
+  const layoutStory = category?.layout.story ?? [];
+  const shownOrder = locked ? readSections(category?.layout.sections) : order;
+  const shownFixed = locked ? { more: readFixedShown(category?.layout.sections, "more"), booking: readFixedShown(category?.layout.sections, "booking") } : fixed;
+  const layerItems: LayerItem[] = locked
+    ? layoutStory.map((b) => ({ label: layoutBlockLabel(b), type: LAYOUT_LABEL[b.type], icon: BLOCK_ICON[b.type], half: b.size === "half", hidden: b.show === false }))
+    : blocks.map((b) => ({ label: blockLabel(b), type: BLOCK_LABEL[b.type] ?? b.type, icon: BLOCK_ICON[b.type] ?? "type", half: b.size === "half", hidden: b.show === false }));
+  const layoutBlock = locked && sel?.kind === "block" ? layoutStory[sel.index] : undefined;
   const selPart = sel?.kind === "part" ? sel.id : null;
-  const showSec = (k: (typeof FORMS)[PartId][number]) => selPart !== null && FORMS[selPart].includes(k);
-  const current = sel?.kind === "block" ? blocks[sel.index] : undefined;
+  // Which editor cards the Edit tab opens: the part's, or the fields a layout block reads.
+  const formKeys: Array<(typeof FORMS)[PartId][number]> = layoutBlock
+    ? [...new Set(blockSources(layoutBlock).map((k) => sourceForm(k)).filter((k): k is NonNullable<typeof k> => !!k))]
+    : selPart
+      ? FORMS[selPart]
+      : [];
+  const showSec = (k: (typeof FORMS)[PartId][number]) => formKeys.includes(k);
+  const current = !locked && sel?.kind === "block" ? blocks[sel.index] : undefined;
 
   /** One place that writes the layout, so every change is undoable. */
   function applyLayout(
@@ -615,7 +666,7 @@ export function EditListingScreen({ id }: Props) {
   const startStory = () =>
     applyLayout({ blocks: seedBlocks({ title: form.title, about: form.about, included: form.included, notIncluded: form.notIncluded, carry: form.carry, faqs: form.faqs }) }, null);
 
-  const editTitle = current ? BLOCK_LABEL[current.type] ?? current.type : selPart ? PART_META[selPart].label : null;
+  const editTitle = current ? BLOCK_LABEL[current.type] ?? current.type : layoutBlock ? LAYOUT_LABEL[layoutBlock.type] : selPart ? PART_META[selPart].label : null;
   const partShow = (id: PartId): boolean | null => {
     if (id === "more" || id === "booking") return fixed[id];
     return order.find((x) => x.id === id)?.show ?? null;
@@ -691,9 +742,10 @@ export function EditListingScreen({ id }: Props) {
           onSel={selectFromLayers}
           hover={hoverId}
           onHover={setHoverId}
-          blocks={blocks}
-          order={order}
-          fixed={fixed}
+          items={layerItems}
+          locked={locked}
+          order={shownOrder}
+          fixed={shownFixed}
           venue={venue}
           onMoveSection={moveSection}
           onToggleSection={toggleSection}
@@ -709,17 +761,19 @@ export function EditListingScreen({ id }: Props) {
 
         <section className={styles2.mid}>
           <div className={styles2.tabs}>
-            <button type="button" className={`${styles2.tab} ${tab === "widgets" ? styles2.tabOn : ""}`} onClick={() => setTab("widgets")}>
-              <Ic name="widgets" size={15} />
-              <span>Widgets</span>
-            </button>
+            {locked ? null : (
+              <button type="button" className={`${styles2.tab} ${tab === "widgets" ? styles2.tabOn : ""}`} onClick={() => setTab("widgets")}>
+                <Ic name="widgets" size={15} />
+                <span>Widgets</span>
+              </button>
+            )}
             <button type="button" className={`${styles2.tab} ${tab === "edit" ? styles2.tabOn : ""}`} onClick={() => setTab("edit")}>
               <Ic name="edit" size={15} />
-              <span>{editTitle ? `Edit · ${current ? blockLabel(current) : editTitle}` : "Edit block"}</span>
+              <span>{editTitle ? `Edit · ${current ? blockLabel(current) : layoutBlock ? layoutBlockLabel(layoutBlock) : editTitle}` : "Edit block"}</span>
             </button>
           </div>
           <div className={styles2.pane}>
-            {tab === "widgets" ? (
+            {tab === "widgets" && !locked ? (
               <WidgetLibrary
                 blocks={blocks}
                 order={order}
@@ -815,11 +869,22 @@ export function EditListingScreen({ id }: Props) {
               </div>
             ) : null}
 
+            {tab === "edit" && layoutBlock && sel?.kind === "block" ? (
+              <div className={styles2.paneInner} style={{ paddingBottom: 0 }}>
+                <PaneHead icon={BLOCK_ICON[layoutBlock.type]} title={layoutBlockLabel(layoutBlock)} sub={`${LAYOUT_LABEL[layoutBlock.type]} · from ${category?.name ?? "category"}`} />
+                <p className={styles2.note}>
+                  {blockSources(layoutBlock).length
+                    ? `Shows: ${blockSources(layoutBlock).map(sourceLabel).join(", ")}. Fill it in below. The block hides itself when it is empty.`
+                    : "Fixed text from the category. Nothing to fill in here."}
+                </p>
+              </div>
+            ) : null}
+
             {tab === "edit" && selPart ? (
               <div className={styles2.paneInner} style={{ paddingBottom: 0 }}>
                 <PaneHead icon={PART_ICON[selPart]} title={PART_META[selPart].label} sub={PART_META[selPart].hint} />
                 {partNote[selPart] ? <p className={styles2.note}>{partNote[selPart]}</p> : null}
-                {partShow(selPart) !== null ? (
+                {partShow(selPart) !== null && !locked ? (
                   <div className={styles2.ifoot}>
                     <button
                       type="button"
@@ -834,7 +899,7 @@ export function EditListingScreen({ id }: Props) {
               </div>
             ) : null}
 
-            <form id="listing-form" className={`${styles2.paneInner} ${styles.editForm}`} onSubmit={onSave} hidden={tab !== "edit" || !selPart || FORMS[selPart].length === 0}>
+            <form id="listing-form" className={`${styles2.paneInner} ${styles.editForm}`} onSubmit={onSave} hidden={tab !== "edit" || formKeys.length === 0}>
         <div id="sec-photos" className={styles.group} hidden={!showSec("photos")}>
         <ListingPhotos
           experienceId={id}
@@ -847,6 +912,32 @@ export function EditListingScreen({ id }: Props) {
         <div id="sec-basics" className={styles.section} hidden={!showSec("basics")}>
           <h2 className={`t-title-sm ${styles.sectionTitle}`}>Basics</h2>
           <div className={styles.grid2}>
+            <div className={`${styles.selectField} ${styles.full}`}>
+              <label className={styles.textareaLabel} htmlFor="listing-category">
+                Category
+              </label>
+              <select
+                id="listing-category"
+                className={styles.select}
+                value={form.categoryId ?? ""}
+                onChange={(e) => {
+                  const next = e.target.value || null;
+                  const name = categories.find((c) => c.id === next)?.name;
+                  const msg = next ? `This listing will use the ${name} layout. Its own story blocks stay saved but won't be shown.` : "This listing goes back to its own layout.";
+                  if (!window.confirm(`${msg} Continue?`)) return;
+                  patchField("categoryId", next);
+                  setSel(null);
+                }}
+              >
+                <option value="">None (own layout)</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <p className={`t-body-sm ${styles.hint}`}>A category fixes the page layout. You fill in the content.</p>
+            </div>
             <Input
               label="Title"
               value={form.title}
@@ -1382,6 +1473,9 @@ export function EditListingScreen({ id }: Props) {
           />
         </div>
 
+        <div id="sec-story" className={styles.section} hidden={!showSec("story")}>
+          <StoryContentFields content={form.baseContent} onChange={(c) => patchField("baseContent", c)} />
+        </div>
         <div id="sec-tags" className={styles.section} hidden={!showSec("tags")}>
           <div className={styles.sectionHead}>
             <h2 className={`t-title-sm ${styles.sectionTitle}`}>Tags</h2>
@@ -1433,10 +1527,12 @@ export function EditListingScreen({ id }: Props) {
               <div className={styles2.t}>Mobile preview</div>
               <div className={styles2.s}>discovr.in/experiences/{form.slug || "untitled"}</div>
             </div>
-            <button type="button" className={`${styles2.btn} ${styles2.btnSm} ${arranging ? styles2.btnActive : ""}`} aria-pressed={arranging} onClick={() => setArranging(!arranging)}>
-              <Ic name={arranging ? "check" : "move"} size={14} />
-              {arranging ? "Done" : "Arrange"}
-            </button>
+            {locked ? null : (
+              <button type="button" className={`${styles2.btn} ${styles2.btnSm} ${arranging ? styles2.btnActive : ""}`} aria-pressed={arranging} onClick={() => setArranging(!arranging)}>
+                <Ic name={arranging ? "check" : "move"} size={14} />
+                {arranging ? "Done" : "Arrange"}
+              </button>
+            )}
           </div>
           <LivePreview
             id={id}

@@ -13,6 +13,8 @@ import {
   type CatalogHostSummary,
   type ExperienceContent,
 } from "@/shared/utils/catalogApi";
+import { fetchCategories } from "@/features/categories/utils/categoryApi";
+import type { Category } from "@/features/categories/utils/layout";
 import { useCatalog } from "@/shared/utils/useCatalog";
 import { useToast } from "@/shared/components/Toast";
 import styles from "../styles/EditListingScreen.module.css";
@@ -57,6 +59,8 @@ export function AddListingScreen() {
   const [placeLng, setPlaceLng] = useState("73.82");
   const [priceFromInr, setPriceFromInr] = useState("0");
   const { experiences } = useCatalog();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryId, setCategoryId] = useState("");
   const [source, setSource] = useState<CatalogExperienceAdmin | null>(null);
   const [loadingSource, setLoadingSource] = useState(false);
 
@@ -103,6 +107,11 @@ export function AddListingScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    // Before the categories migration the list can't load; the page then works as it always has.
+    fetchCategories().then(setCategories).catch(() => setCategories([]));
+  }, []);
+
   async function onSave(e: FormEvent) {
     e.preventDefault();
     if (!title.trim()) {
@@ -136,8 +145,9 @@ export function AddListingScreen() {
         placeLat: Number(placeLat) || 0,
         placeLng: Number(placeLng) || 0,
         priceFromInr: Math.max(0, Math.round(Number(priceFromInr) || 0)),
-      });
-      if (source) {
+        ...(categoryId ? { categoryId } : {}),
+      } as Parameters<typeof createExperienceAdmin>[0]);
+      if (source && !categoryId) {
         // Create takes only the basics, so the layout, hours, policy and tags go in right after.
         try {
           await patchExperienceAdmin(created.id, {
@@ -174,6 +184,33 @@ export function AddListingScreen() {
       <div className={styles.section}>
         <h2 className={`t-title-sm ${styles.sectionTitle}`}>New listing</h2>
         <div className={styles.grid2}>
+          {categories.length > 0 ? (
+            <div className={`${styles.selectField} ${styles.full}`}>
+              <label className={styles.textareaLabel} htmlFor="new-category">
+                Category
+              </label>
+              <select
+                id="new-category"
+                className={styles.select}
+                value={categoryId}
+                onChange={(e) => {
+                  setCategoryId(e.target.value);
+                  if (e.target.value) setSource(null);
+                }}
+              >
+                <option value="">None (set up the page layout yourself)</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <p className={`t-body-sm ${styles.hint}`}>
+                {categoryId ? "The page layout comes from the category. After you create the listing, fill in its content." : "Pick a category to use its fixed page layout."}
+              </p>
+            </div>
+          ) : null}
+          {categoryId ? null : (
           <div className={`${styles.selectField} ${styles.full}`}>
             <label className={styles.textareaLabel} htmlFor="new-from">
               Start from
@@ -196,6 +233,7 @@ export function AddListingScreen() {
                   : "Pick a listing to reuse its layout, then edit the content."}
             </p>
           </div>
+          )}
           <Input
             label="Title"
             value={title}

@@ -63,7 +63,7 @@ export function writeSections(order: SectionState[], fixed: Partial<Record<Fixed
 }
 
 /** Which form sections open in the Edit tab for each part. */
-export const FORMS: Record<PartId, Array<"photos" | "basics" | "place" | "price" | "when" | "links" | "faqs" | "policy" | "tags" | "booking">> = {
+export const FORMS: Record<PartId, Array<"photos" | "basics" | "place" | "price" | "when" | "links" | "faqs" | "policy" | "tags" | "booking" | "story">> = {
   gallery: ["photos"],
   title: ["basics"],
   info: ["price", "place", "when"],

@@ -35,6 +35,13 @@ export const ListIcon = (p: P) => (
   </Stroke>
 );
 
+export const LayersIcon = (p: P) => (
+  <Stroke {...p}>
+    <path d="m12 2 10 5-10 5L2 7z" />
+    <path d="m2 17 10 5 10-5M2 12l10 5 10-5" />
+  </Stroke>
+);
+
 export const UsersIcon = (p: P) => (
   <Stroke {...p}>
     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
