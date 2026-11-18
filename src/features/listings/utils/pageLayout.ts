@@ -9,7 +9,8 @@ export type PartId = SectionId | FixedId | "faqs" | "tags";
 /** The page as it has always been. */
 export const DEFAULT_SECTIONS: SectionId[] = ["title", "info", "verdict", "actions", "about", "menu", "policy", "host", "reviews"];
 
-export type SectionState = { id: SectionId; show: boolean };
+export type PartStyle = { space?: "none" | "large"; hide?: "mobile" | "desktop" };
+export type SectionState = { id: SectionId; show: boolean } & PartStyle;
 
 export const PART_META: Record<PartId, { label: string; hint: string; glyph: string }> = {
   gallery: { label: "Photo gallery", hint: "Always at the top", glyph: "▣" },
@@ -28,8 +29,10 @@ export const PART_META: Record<PartId, { label: string; hint: string; glyph: str
   tags: { label: "Tags", hint: "Search and cards", glyph: "#" },
 };
 
-function asList(value: unknown): Array<{ id: string; show?: boolean }> {
-  return Array.isArray(value) ? value.filter((v): v is { id: string; show?: boolean } => !!v && typeof (v as { id?: unknown }).id === "string") : [];
+type Saved = { id: string; show?: boolean } & PartStyle;
+
+function asList(value: unknown): Saved[] {
+  return Array.isArray(value) ? value.filter((v): v is Saved => !!v && typeof (v as { id?: unknown }).id === "string") : [];
 }
 
 /** Saved layout merged with the default: unknown ids dropped, missing ones kept after the part before them. */
@@ -38,7 +41,7 @@ export function readSections(value: unknown): SectionState[] {
   const known = new Set<string>(DEFAULT_SECTIONS);
   const out = saved
     .filter((s, i) => known.has(s.id) && saved.findIndex((x) => x.id === s.id) === i)
-    .map((s) => ({ id: s.id as SectionId, show: s.show !== false }));
+    .map((s) => ({ id: s.id as SectionId, show: s.show !== false, ...(s.space ? { space: s.space } : {}), ...(s.hide ? { hide: s.hide } : {}) }));
   for (const id of DEFAULT_SECTIONS) {
     if (out.some((s) => s.id === id)) continue;
     const prev = DEFAULT_SECTIONS[DEFAULT_SECTIONS.indexOf(id) - 1];
@@ -53,11 +56,11 @@ export function readFixedShown(value: unknown, id: FixedId): boolean {
 }
 
 /** What gets saved. The default layout saves as nothing, so untouched listings stay untouched. */
-export function writeSections(order: SectionState[], fixed: Partial<Record<FixedId, boolean>>): Array<{ id: string; show?: boolean }> | undefined {
-  const isDefault = order.every((s, i) => s.id === DEFAULT_SECTIONS[i] && s.show) && Object.values(fixed).every((v) => v !== false);
+export function writeSections(order: SectionState[], fixed: Partial<Record<FixedId, boolean>>): Saved[] | undefined {
+  const isDefault = order.every((s, i) => s.id === DEFAULT_SECTIONS[i] && s.show && !s.space && !s.hide) && Object.values(fixed).every((v) => v !== false);
   if (isDefault) return undefined;
   return [
-    ...order.map((s) => (s.show ? { id: s.id } : { id: s.id, show: false })),
+    ...order.map(({ id, show, space, hide }) => ({ id, ...(show ? {} : { show: false }), ...(space ? { space } : {}), ...(hide ? { hide } : {}) })),
     ...(Object.entries(fixed) as Array<[FixedId, boolean]>).filter(([, v]) => v === false).map(([id]) => ({ id, show: false })),
   ];
 }

@@ -2,7 +2,7 @@
  * A category's page layout. Story blocks name the listing field they fill (`source`), so a listing
  * keeps only its content. Mirrors `discovr-frontend/src/features/experience/utils/layout.ts`: keep the two in step.
  */
-export type LayoutBlock = { size?: "full" | "half"; show?: boolean; when?: string } & (
+export type LayoutBlock = { size?: "full" | "half"; show?: boolean; when?: string; space?: "none" | "large"; hide?: "mobile" | "desktop" } & (
   | { type: "heading"; level: "section" | "small"; text?: string; source?: string }
   | { type: "line" }
   | { type: "text"; label?: string; text?: string; source?: string }

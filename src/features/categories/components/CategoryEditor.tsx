@@ -377,6 +377,34 @@ export function CategoryEditor({ id }: { id: string }) {
                       ? "These fields aren't part of the page layout."
                       : "The content of this part comes from the listing. Here you choose where it sits and whether it shows."}
                 </p>
+                {order.some((x) => x.id === selPart) ? (
+                  <>
+                    <label className={styles.area}>
+                      <span className={styles.areaLabel}>Space above</span>
+                      <select
+                        className={styles.select}
+                        value={order.find((x) => x.id === selPart)?.space ?? ""}
+                        onChange={(ev) => apply({ order: order.map((x) => (x.id === selPart ? { ...x, space: (ev.target.value || undefined) as SectionState["space"] } : x)) })}
+                      >
+                        <option value="">Normal</option>
+                        <option value="none">None (stick to the part above)</option>
+                        <option value="large">Large</option>
+                      </select>
+                    </label>
+                    <label className={styles.area}>
+                      <span className={styles.areaLabel}>Hide on</span>
+                      <select
+                        className={styles.select}
+                        value={order.find((x) => x.id === selPart)?.hide ?? ""}
+                        onChange={(ev) => apply({ order: order.map((x) => (x.id === selPart ? { ...x, hide: (ev.target.value || undefined) as SectionState["hide"] } : x)) })}
+                      >
+                        <option value="">Nowhere (show everywhere)</option>
+                        <option value="mobile">Phones</option>
+                        <option value="desktop">Desktop</option>
+                      </select>
+                    </label>
+                  </>
+                ) : null}
                 {partShown(selPart) !== undefined && selPart !== "faqs" && selPart !== "tags" ? (
                   <div className={styles.ifoot}>
                     <button

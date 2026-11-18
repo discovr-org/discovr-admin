@@ -14,6 +14,7 @@ import { Button } from "@/shared/components/Button";
 import {
   LayoutDashboardIcon,
   LayersIcon,
+  SettingsIcon,
   ListIcon,
   MenuIcon,
   PlusIcon,
@@ -26,13 +27,15 @@ import { ADMIN_NAV_GROUPS, type AdminNavId } from "../utils/nav";
 import styles from "../styles/AdminShell.module.css";
 
 /** "g" then one of these keys. Shown next to each nav link. */
-const GO_KEYS: Record<string, string> = { o: "/", l: "/listings", c: "/categories", h: "/hosts", s: "/search" };
-const NAV_KEYS: Record<AdminNavId, string> = { overview: "G O", listings: "G L", categories: "G C", hosts: "G H", search: "G S" };
+const GO_KEYS: Record<string, string> = { o: "/", l: "/listings", c: "/categories", f: "/home", t: "/site", h: "/hosts", s: "/search" };
+const NAV_KEYS: Record<AdminNavId, string> = { overview: "G O", listings: "G L", categories: "G C", home: "G F", site: "G T", hosts: "G H", search: "G S" };
 
 const ICONS: Record<AdminNavId, typeof LayoutDashboardIcon> = {
   overview: LayoutDashboardIcon,
   listings: ListIcon,
   categories: LayersIcon,
+  home: ListIcon,
+  site: SettingsIcon,
   hosts: UsersIcon,
   search: SearchIcon,
 };
