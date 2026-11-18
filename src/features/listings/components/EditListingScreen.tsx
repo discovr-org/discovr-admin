@@ -224,6 +224,9 @@ function buildContent(form: FormState): ExperienceContent {
   };
 }
 
+/** Shown before leaving a listing that has edits not yet saved. */
+const LOSE_CHANGES = "You have unsaved changes. If you leave this listing now, you'll lose them. Leave anyway?";
+
 function PaneHead({ icon, title, sub }: { icon: IconName; title: string; sub: string }) {
   return (
     <div className={styles2.ihead}>
@@ -635,7 +638,7 @@ export function EditListingScreen({ id }: Props) {
   return (
     <div className={styles2.app}>
       <header className={styles2.top}>
-        <Link href="/listings" className={styles2.back}>
+        <Link href="/listings" className={styles2.back} onClick={(e) => dirty && !window.confirm(LOSE_CHANGES) && e.preventDefault()}>
           ← Listings
         </Link>
         <div className={styles2.logo}>
@@ -648,7 +651,7 @@ export function EditListingScreen({ id }: Props) {
             aria-label="Listing"
             value={id}
             onChange={(e) => {
-              if (dirty && !window.confirm("You have unsaved changes. Leave this listing without saving?")) return;
+              if (dirty && !window.confirm(LOSE_CHANGES)) return;
               router.push(`/listings/${e.target.value}`);
             }}
           >
