@@ -20,6 +20,8 @@ type Props = PreviewEvents & {
   id: string;
   /** The form as it is right now, unsaved changes included. */
   draft: ExperienceAdminPatch;
+  /** Changes when photos or menu pages change. They save on their own, so the draft alone would not notice. */
+  mediaKey: string;
   selected: string | null;
   hover: string | null;
   arranging: boolean;
@@ -31,19 +33,21 @@ const W = 414;
 const H = 868;
 
 /** The real guest page in a phone frame, drawn from the draft. Every local change shows here. */
-export function LivePreview({ id, draft, selected, hover, arranging, scrollTo, ...events }: Props) {
+export function LivePreview({ id, draft, mediaKey, selected, hover, arranging, scrollTo, ...events }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   const body = useRef<HTMLDivElement>(null);
   const latest = useRef<unknown>(null);
   const ready = useRef(false);
   const handlers = useRef(events);
+  const draftRef = useRef(draft);
   const [scale, setScale] = useState(1);
   const [status, setStatus] = useState<"loading" | "updating" | "ok" | "error">("loading");
   const origin = GUEST_URL;
-  const draftKey = JSON.stringify(draft);
+  const draftKey = JSON.stringify(draft) + mediaKey;
 
   useEffect(() => {
     handlers.current = events;
+    draftRef.current = draft;
   });
 
   const post = (message: Record<string, unknown>) => frame.current?.contentWindow?.postMessage(message, origin);
@@ -86,7 +90,7 @@ export function LivePreview({ id, draft, selected, hover, arranging, scrollTo, .
     const ctl = new AbortController();
     const t = window.setTimeout(() => {
       setStatus((s) => (s === "loading" ? s : "updating"));
-      previewExperienceAdmin(id, JSON.parse(draftKey) as ExperienceAdminPatch, ctl.signal)
+      previewExperienceAdmin(id, draftRef.current, ctl.signal)
         .then((experience) => {
           latest.current = experience;
           setStatus("ok");
@@ -95,7 +99,7 @@ export function LivePreview({ id, draft, selected, hover, arranging, scrollTo, .
         .catch((err: unknown) => {
           if ((err as { name?: string })?.name !== "AbortError") setStatus("error");
         });
-    }, 300);
+    }, 150);
     return () => {
       window.clearTimeout(t);
       ctl.abort();

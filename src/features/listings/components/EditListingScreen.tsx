@@ -1419,6 +1419,7 @@ export function EditListingScreen({ id }: Props) {
           <LivePreview
             id={id}
             draft={buildPatch(form)}
+            mediaKey={media.photos.map((ph) => `${ph.id}${ph.src}${ph.isCover}`).join() + media.menuPages.map((m) => `${m.id}${m.src}`).join()}
             selected={pvId(sel)}
             hover={hoverId}
             arranging={arranging}
