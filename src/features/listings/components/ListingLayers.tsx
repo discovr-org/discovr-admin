@@ -10,6 +10,9 @@ export type Sel = { kind: "part"; id: PartId } | { kind: "block"; index: number 
 type Props = {
   sel: Sel;
   onSel: (s: Sel) => void;
+  /** Preview id (`part:x` / `block:n`) the pointer is over, in the phone or in this list. */
+  hover: string | null;
+  onHover: (id: string | null) => void;
   blocks: StoryBlock[];
   order: SectionState[];
   fixed: Record<"more" | "booking", boolean>;
@@ -51,7 +54,9 @@ export function ListingLayers(p: Props) {
     return (
       <li
         key={id}
-        className={`${styles.layer} ${isPart(id) ? styles.layerOn : ""} ${hidden ? styles.layerHidden : ""} ${over === `s${id}` && dragSec !== null ? styles.layerOver : ""}`}
+        onMouseEnter={() => p.onHover(`part:${id}`)}
+        onMouseLeave={() => p.onHover(null)}
+        className={`${styles.layer} ${isPart(id) ? styles.layerOn : ""} ${p.hover === `part:${id}` ? styles.layerHl : ""} ${hidden ? styles.layerHidden : ""} ${over === `s${id}` && dragSec !== null ? styles.layerOver : ""}`}
         draggable={opts.drag !== undefined}
         onDragStart={(e) => {
           if (opts.drag === undefined) return;
@@ -115,7 +120,9 @@ export function ListingLayers(p: Props) {
               return (
                 <li
                   key={i}
-                  className={`${styles.layer} ${on ? styles.layerOn : ""} ${hidden ? styles.layerHidden : ""} ${over === `b${i}` ? styles.layerOver : ""}`}
+                  onMouseEnter={() => p.onHover(`block:${i}`)}
+                  onMouseLeave={() => p.onHover(null)}
+                  className={`${styles.layer} ${on ? styles.layerOn : ""} ${p.hover === `block:${i}` ? styles.layerHl : ""} ${hidden ? styles.layerHidden : ""} ${over === `b${i}` ? styles.layerOver : ""}`}
                   draggable
                   onDragStart={(e) => {
                     e.dataTransfer.effectAllowed = "move";

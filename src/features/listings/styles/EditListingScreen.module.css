@@ -441,3 +441,25 @@
 .group[hidden] {
   display: none;
 }
+
+/* The editor's form sections read as cards with a small caps label, like the prototype's inspector. */
+.editForm {
+  --size-field: 40px;
+}
+
+.editForm .section,
+.editForm .group {
+  padding: var(--space-4);
+  border: var(--border-hairline) solid var(--line-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.editForm .sectionTitle {
+  color: var(--ink-subtle);
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { PART_META, type SectionState } from "../utils/pageLayout";
 import { WIDGETS, type StoryBlock } from "../utils/storyBlocks";
 import styles from "../styles/ListingEditor.module.css";
-import { WidgetPreview } from "./ListingPhone";
+import { WidgetPreview } from "./WidgetPreview";
 
 type Props = {
   blocks: StoryBlock[];

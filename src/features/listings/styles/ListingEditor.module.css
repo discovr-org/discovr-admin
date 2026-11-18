@@ -1,8 +1,9 @@
 /* ---------- shell: top bar + 3 columns ---------- */
 .app {
+  position: fixed;
+  inset: 0;
   display: grid;
   grid-template-rows: var(--size-bar-app) minmax(0, 1fr);
-  height: 100dvh;
   background: var(--surface-canvas);
 }
 
@@ -193,8 +194,12 @@
 }
 
 .layerOn {
+  background: var(--editor-sel-tint);
+  box-shadow: inset 0 0 0 1px var(--editor-sel-ring);
+}
+
+.layerHl {
   background: var(--surface-sunken);
-  border-color: var(--ink-muted);
 }
 
 .layerOver {
@@ -204,7 +209,7 @@
 .layerMain {
   flex: 1;
   min-width: 0;
-  min-height: var(--size-tap-min);
+  min-height: 46px;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -244,8 +249,8 @@
 }
 
 .layerOn .layerIc {
-  background: var(--surface-overlay);
-  color: var(--ink-primary);
+  background: var(--editor-sel-icon);
+  color: var(--editor-sel-ink);
 }
 
 .layerText {
@@ -258,14 +263,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
-  line-height: 20px;
+  font-size: 13.5px;
+  line-height: 18px;
   font-weight: 500;
 }
 
 .layerType {
+  display: flex;
+  align-items: center;
   color: var(--ink-subtle);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 16px;
 }
 
@@ -516,6 +523,7 @@
 }
 
 .stageBody {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -524,190 +532,120 @@
   padding: var(--space-1) var(--space-4) var(--space-4);
 }
 
+.devwrap {
+  position: relative;
+  flex: none;
+}
+
 .device {
-  width: 390px;
-  max-width: 100%;
-  height: min(820px, 100%);
-  padding: 10px;
-  border-radius: 52px;
-  background: var(--surface-overlay);
-  box-shadow: var(--shadow-raised);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 414px;
+  height: 868px;
+  padding: 12px;
+  border-radius: 64px;
+  background: var(--editor-bezel);
+  box-shadow: 0 0 0 1.5px var(--editor-bezel-ring), 0 30px 80px rgba(0, 0, 0, 0.8), inset 0 0 0 2px rgba(0, 0, 0, 0.5);
+  transform-origin: 0 0;
 }
 
 .screen {
   position: relative;
-  height: 100%;
+  width: 390px;
+  height: 844px;
   overflow: hidden;
-  border-radius: 42px;
+  border-radius: 52px;
   background: var(--surface-canvas);
 }
 
-.scroller {
-  height: 100%;
-  overflow-y: auto;
-  scrollbar-width: none;
-  padding-bottom: 96px;
-}
-
-.scroller::-webkit-scrollbar {
-  display: none;
-}
-
-.pvBar {
-  position: sticky;
+.sbar {
+  position: absolute;
   top: 0;
-  z-index: var(--z-sticky);
+  left: 0;
+  right: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: var(--size-bar-app);
-  padding: 0 var(--space-4);
-  background: color-mix(in srgb, var(--surface-canvas) 90%, transparent);
-  backdrop-filter: blur(14px);
-  font-family: var(--font-display);
-  font-size: 23px;
-  font-weight: 700;
-  letter-spacing: -0.035em;
+  height: 50px;
+  padding: 6px 34px 0 42px;
+  background: var(--surface-canvas);
+  font: 600 16px var(--font-sans);
 }
 
-.pvHit {
-  display: block;
-  width: 100%;
-  padding: var(--space-1);
-  border: var(--border-hairline) dashed transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
+.island {
+  position: absolute;
+  top: 11px;
+  left: 50%;
+  width: 122px;
+  height: 35px;
+  border-radius: 20px;
+  background: var(--editor-island);
+  transform: translateX(-50%);
 }
 
-.pvHit:hover {
-  border-color: var(--line-strong);
+.sicons {
+  font-size: 11px;
+  letter-spacing: 1px;
 }
 
-.pvOn {
-  border: var(--border-hairline) solid var(--ink-muted);
+.frame {
+  position: absolute;
+  top: 50px;
+  left: 0;
+  width: 390px;
+  height: 794px;
+  border: 0;
+  background: var(--surface-canvas);
+  color-scheme: dark;
 }
 
-.pvPad {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-3) 0;
+.homeInd {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  z-index: 3;
+  width: 134px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--ink-primary);
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
-.pvCover {
-  width: 100%;
-  aspect-ratio: 4 / 3.4;
-  object-fit: cover;
-  background: var(--surface-sunken);
-  display: block;
-}
-
-.pvNoCover {
-  display: grid;
-  place-items: center;
-  aspect-ratio: 4 / 3;
-  background: var(--surface-sunken);
-  color: var(--ink-subtle);
-  font-size: 13px;
-}
-
-.pvTitle {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 28px;
-  line-height: 32px;
-  letter-spacing: -0.025em;
-}
-
-.pvVerdict,
-.pvRow {
-  margin: var(--space-2) 0 0;
-  color: var(--ink-muted);
-  font-size: 14px;
-  line-height: 20px;
-}
-
-.pvPrice {
-  margin: var(--space-3) 0 0;
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.pvPrice span {
-  color: var(--ink-muted);
-  font-size: 14px;
-  font-weight: 400;
-}
-
-.pvActions {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-2);
-  text-align: center;
-  color: var(--ink-muted);
-  font-size: 12px;
-}
-
-.pvCircle {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  margin: 0 auto var(--space-1);
-  border: var(--border-hairline) solid var(--line-subtle);
-  border-radius: 50%;
-  background: var(--surface-raised);
-  color: var(--ink-primary);
-}
-
-.pvBook {
+.previewStatus {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: var(--space-3) var(--space-4) var(--space-5);
-  border: 0;
-  border-top: var(--border-hairline) solid var(--line-subtle);
-  background: color-mix(in srgb, var(--surface-canvas) 94%, transparent);
-  backdrop-filter: blur(14px);
-  color: inherit;
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-}
-
-.pvBookOn {
-  box-shadow: inset 0 0 0 2px var(--ink-muted);
-}
-
-.pvBookFrom {
-  display: block;
-  color: var(--ink-muted);
+  bottom: 2px;
+  margin: 0;
+  text-align: center;
+  color: var(--ink-subtle);
   font-size: 12px;
 }
 
-.pvBookPrice {
-  font-size: 18px;
-  font-weight: 700;
+.arrangeAdd {
+  position: absolute;
+  top: 78px;
+  left: calc(50% - 178px);
+  z-index: 4;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ink-primary);
+  color: var(--surface-canvas);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
 }
 
-.pvCta {
-  padding: 0 var(--space-5);
-  height: var(--size-control-lg);
-  display: inline-flex;
-  align-items: center;
-  border-radius: var(--radius-pill);
-  background: var(--brand-primary);
-  color: var(--brand-primary-on);
-  font-weight: 600;
+.arrangeAdd:focus-visible {
+  outline: var(--border-focus) solid var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 
 /* ---------- story blocks inside the phone ---------- */
@@ -1049,4 +987,31 @@
   width: 28px;
   height: 28px;
   font-size: 14px;
+}
+
+/* ---------- pane header, as in the prototype ---------- */
+.ihead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.iheadIc {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--surface-sunken);
+  color: var(--ink-muted);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.ihead p {
+  margin: 2px 0 0;
+  color: var(--ink-subtle);
+  font-size: 12px;
 }

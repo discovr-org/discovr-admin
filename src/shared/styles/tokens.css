@@ -35,6 +35,16 @@
   --state-critical-tint: #33150f;
   --focus-ring: #f4f0e3;
 
+  /* editor chrome (listing editor only): selection blue and the phone bezel */
+  --editor-sel: #6ea8ff;
+  --editor-sel-tint: #16243a;
+  --editor-sel-ring: #2f4a73;
+  --editor-sel-icon: #20334f;
+  --editor-sel-ink: #cfe0ff;
+  --editor-bezel: linear-gradient(145deg, #2a302e, #141817);
+  --editor-bezel-ring: #3a4240;
+  --editor-island: #000;
+
   /* spacing, 4px base — design system values */
   --space-1: 4px;
   --space-2: 8px;

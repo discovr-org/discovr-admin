@@ -11,6 +11,7 @@ import { PlaceMap } from "@/shared/components/PlaceMap";
 import { ListIcon } from "@/shared/components/icons";
 import {
   deleteExperienceAdmin,
+  type ExperienceAdminPatch,
   fetchExperienceAdmin,
   patchExperienceAdmin,
   type CatalogExperienceAdmin,
@@ -27,7 +28,7 @@ import { FORMS, PART_META, readFixedShown, readSections, writeSections, type Par
 import styles2 from "../styles/ListingEditor.module.css";
 import { BlockEditor } from "./BlockEditor";
 import { ListingLayers, type Sel } from "./ListingLayers";
-import { ListingPhone } from "./ListingPhone";
+import { LivePreview } from "./LivePreview";
 import { WidgetLibrary } from "./WidgetLibrary";
 
 type Props = { id: string };
@@ -36,7 +37,7 @@ type LinkKey = keyof NonNullable<ExperienceContent["links"]>;
 type BookVia = NonNullable<ExperienceContent["bookVia"]>;
 type FaqRow = { q: string; a: string };
 
-type FormState = {
+export type FormState = {
   title: string;
   slug: string;
   status: CatalogExperienceAdmin["status"];
@@ -221,6 +222,64 @@ function buildContent(form: FormState): ExperienceContent {
   };
 }
 
+function PaneHead({ glyph, title, sub }: { glyph: string; title: string | null; sub: string }) {
+  return (
+    <div className={styles2.ihead}>
+      <span className={styles2.iheadIc} aria-hidden="true">
+        {glyph}
+      </span>
+      <div>
+        <h3 className={styles2.paneTitle}>{title}</h3>
+        <p>{sub}</p>
+      </div>
+    </div>
+  );
+}
+
+/** Everything the form changes, in the shape the API takes. Used by Save and by the live preview. */
+export function buildPatch(form: FormState): ExperienceAdminPatch {
+  const tags = form.tags.map((t) => t.trim()).filter(Boolean);
+  return {
+    title: form.title.trim(),
+    slug: form.slug.trim(),
+    status: form.status,
+    verdict: form.verdict.trim() || null,
+    about: form.about,
+    placeName: form.placeName.trim(),
+    placeNeighborhood: form.placeNeighborhood.trim(),
+    placeLat: Number(form.placeLat) || 0,
+    placeLng: Number(form.placeLng) || 0,
+    priceFromInr: Math.max(0, Math.round(Number(form.priceFromInr) || 0)),
+    durationMinutes: Math.max(
+      1,
+      Math.round(Number(form.durationMinutes) || 1),
+    ),
+    groupSizeMax: Math.max(1, Math.round(Number(form.groupSizeMax) || 1)),
+    groupSizeLabel: form.groupSizeLabel.trim(),
+    tags,
+    schedule: {
+      days: form.days.trim() || undefined,
+      timeSlot: form.timeSlot.trim() || undefined,
+      altDays: form.altTimeSlot.trim() ? form.altDays : [],
+      altTimeSlot: form.altTimeSlot.trim() || undefined,
+      closedDays: form.closedDays,
+      bestTime: form.bestTime.trim() || undefined,
+      ageGroup: form.ageGroup.trim() || undefined,
+      minPeople: form.minPeople.trim() || undefined,
+      durationLabel: form.durationLabel.trim() || undefined,
+    },
+    policy: {
+      summary: form.policySummary.trim(),
+      booking: form.bookingNotes.map((s) => s.trim()).filter(Boolean),
+      cancellation: form.cancellationNotes
+        .map((s) => s.trim())
+        .filter(Boolean),
+      showFinalTermsNote: form.showFinalTermsNote,
+    },
+    content: buildContent(form),
+  };
+}
+
 /** Older API builds omit these lists. */
 function listingMedia(row: CatalogExperienceAdmin) {
   return { photos: row.photos ?? [], menuPages: row.menuPages ?? [] };
@@ -244,6 +303,8 @@ export function EditListingScreen({ id }: Props) {
   const [sel, setSel] = useState<Sel>(null);
   const [tab, setTab] = useState<"widgets" | "edit">("edit");
   const [arranging, setArranging] = useState(false);
+  const [hoverId, setHoverId] = useState<string | null>(null);
+  const [scrollTo, setScrollTo] = useState<{ id: string; n: number } | null>(null);
   type Snap = { blocks: unknown; sections: unknown };
   const [past, setPast] = useState<Snap[]>([]);
   const [future, setFuture] = useState<Snap[]>([]);
@@ -430,49 +491,9 @@ export function EditListingScreen({ id }: Props) {
       return;
     }
 
-    const tags = form.tags.map((t) => t.trim()).filter(Boolean);
-
     setSaving(true);
     try {
-      const saved = await patchExperienceAdmin(id, {
-        title: form.title.trim(),
-        slug: form.slug.trim(),
-        status: form.status,
-        verdict: form.verdict.trim() || null,
-        about: form.about,
-        placeName: form.placeName.trim(),
-        placeNeighborhood: form.placeNeighborhood.trim(),
-        placeLat: Number(form.placeLat) || 0,
-        placeLng: Number(form.placeLng) || 0,
-        priceFromInr: Math.max(0, Math.round(Number(form.priceFromInr) || 0)),
-        durationMinutes: Math.max(
-          1,
-          Math.round(Number(form.durationMinutes) || 1),
-        ),
-        groupSizeMax: Math.max(1, Math.round(Number(form.groupSizeMax) || 1)),
-        groupSizeLabel: form.groupSizeLabel.trim(),
-        tags,
-        schedule: {
-          days: form.days.trim() || undefined,
-          timeSlot: form.timeSlot.trim() || undefined,
-          altDays: form.altTimeSlot.trim() ? form.altDays : [],
-          altTimeSlot: form.altTimeSlot.trim() || undefined,
-          closedDays: form.closedDays,
-          bestTime: form.bestTime.trim() || undefined,
-          ageGroup: form.ageGroup.trim() || undefined,
-          minPeople: form.minPeople.trim() || undefined,
-          durationLabel: form.durationLabel.trim() || undefined,
-        },
-        policy: {
-          summary: form.policySummary.trim(),
-          booking: form.bookingNotes.map((s) => s.trim()).filter(Boolean),
-          cancellation: form.cancellationNotes
-            .map((s) => s.trim())
-            .filter(Boolean),
-          showFinalTermsNote: form.showFinalTermsNote,
-        },
-        content: buildContent(form),
-      });
+      const saved = await patchExperienceAdmin(id, buildPatch(form));
       setForm(toForm(saved));
       setDirty(false);
       patchExperienceLocal(id, {
@@ -546,7 +567,6 @@ export function EditListingScreen({ id }: Props) {
   const selPart = sel?.kind === "part" ? sel.id : null;
   const showSec = (k: (typeof FORMS)[PartId][number]) => selPart !== null && FORMS[selPart].includes(k);
   const current = sel?.kind === "block" ? blocks[sel.index] : undefined;
-  const cover = media.photos.find((ph) => ph.isCover) ?? media.photos[0];
 
   /** One place that writes the layout, so every change is undoable. */
   function applyLayout(
@@ -575,6 +595,14 @@ export function EditListingScreen({ id }: Props) {
     next.splice(to, 0, ...next.splice(from, 1));
     applyLayout({ order: next });
   };
+  /** The id the live preview gives a selection. FAQs and tags have no spot on the page. */
+  const pvId = (s: Sel): string | null => (s?.kind === "block" ? `block:${s.index}` : s?.kind === "part" && s.id !== "faqs" && s.id !== "tags" ? `part:${s.id}` : null);
+  const selectFromLayers = (next: Sel) => {
+    select(next);
+    const id = pvId(next);
+    if (id) setScrollTo((c) => ({ id, n: (c?.n ?? 0) + 1 }));
+  };
+  const fromPv = (id: string): Sel => (id.startsWith("block:") ? { kind: "block", index: Number(id.slice(6)) } : { kind: "part", id: id.slice(5) as PartId });
   const toggleSection = (id: SectionState["id"]) => applyLayout({ order: order.map((x) => (x.id === id ? { ...x, show: !x.show } : x)) });
   const toggleBlock = (i: number) => applyLayout({ blocks: blocks.map((b, j) => (j === i ? { ...b, show: b.show === false ? undefined : false } : b)) });
   const patchBlock = (i: number, b: StoryBlock, coalesce = false) => applyLayout({ blocks: blocks.map((x, j) => (j === i ? b : x)) }, undefined, coalesce);
@@ -628,7 +656,9 @@ export function EditListingScreen({ id }: Props) {
       <div className={styles2.main}>
         <ListingLayers
           sel={sel}
-          onSel={select}
+          onSel={selectFromLayers}
+          hover={hoverId}
+          onHover={setHoverId}
           blocks={blocks}
           order={order}
           fixed={fixed}
@@ -688,7 +718,7 @@ export function EditListingScreen({ id }: Props) {
 
             {tab === "edit" && current && sel?.kind === "block" ? (
               <div className={styles2.paneInner}>
-                <h3 className={styles2.paneTitle}>{editTitle}</h3>
+                <PaneHead glyph="⋮⋮" title={editTitle} sub={current.type === "line" ? "Divider" : "Story block"} />
                 <div className={styles2.sectionHead}>
                   <label className={styles2.check}>
                     <input type="checkbox" checked={current.show !== false} onChange={() => toggleBlock(sel.index)} />
@@ -712,7 +742,7 @@ export function EditListingScreen({ id }: Props) {
 
             {tab === "edit" && selPart ? (
               <div className={styles2.paneInner}>
-                <h3 className={styles2.paneTitle}>{editTitle}</h3>
+                <PaneHead glyph={PART_META[selPart].glyph} title={editTitle} sub={PART_META[selPart].hint} />
                 {partShow(selPart) !== null ? (
                   <label className={styles2.check}>
                     <input
@@ -727,7 +757,7 @@ export function EditListingScreen({ id }: Props) {
               </div>
             ) : null}
 
-            <form id="listing-form" className={styles2.paneInner} onSubmit={onSave} hidden={tab !== "edit" || !selPart || FORMS[selPart].length === 0}>
+            <form id="listing-form" className={`${styles2.paneInner} ${styles.editForm}`} onSubmit={onSave} hidden={tab !== "edit" || !selPart || FORMS[selPart].length === 0}>
         <div id="sec-photos" className={styles.group} hidden={!showSec("photos")}>
         <ListingPhotos
           experienceId={id}
@@ -1331,34 +1361,27 @@ export function EditListingScreen({ id }: Props) {
             </button>
           </div>
           <div className={styles2.stageBody}>
-            <ListingPhone
-              data={{
-                title: form.title,
-                verdict: form.verdict,
-                hostLabel,
-                coverUrl: cover?.src,
-                priceFromInr: Number(form.priceFromInr) || 0,
-                priceUnit: form.priceUnit,
-                place: [form.placeName, form.placeNeighborhood].filter((x) => x.trim()).join(", "),
-                hours: form.timeSlot || form.days,
-                bestTime: form.bestTime,
-                about: form.about,
-                menuPages: media.menuPages.length,
-                hasPolicy: Boolean(form.policySummary.trim() || form.bookingNotes.some((x) => x.trim()) || form.cancellationNotes.some((x) => x.trim())),
-                hasInstagram: Boolean(form.instagramUrl.trim()),
-                bookLabel: form.bookVia === "link" ? "Book" : "Call to book",
-              }}
-              order={order}
-              blocks={blocks}
-              showMore={fixed.more}
-              showBooking={fixed.booking}
-              sel={sel}
-              onSel={select}
+            <LivePreview
+              id={id}
+              draft={buildPatch(form)}
+              selected={pvId(sel)}
+              hover={hoverId}
               arranging={arranging}
+              scrollTo={scrollTo}
+              onSelect={(pv) => select(fromPv(pv))}
+              onHover={setHoverId}
               onArrange={setArranging}
-              onMoveSection={moveSection}
-              onMoveBlock={(from, to) => applyLayout({ blocks: moveBlock(blocks, from, to) }, { kind: "block", index: to })}
-              onDropWidget={(w, at) => insertAt(at, w)}
+              onAdd={() => setTab("widgets")}
+              onMove={(from, to) => {
+                if (from.startsWith("block:")) {
+                  const [a, b] = [Number(from.slice(6)), Number(to.slice(6))];
+                  applyLayout({ blocks: moveBlock(blocks, a, b) }, { kind: "block", index: b });
+                } else moveSection(order.findIndex((x) => `part:${x.id}` === from), order.findIndex((x) => `part:${x.id}` === to));
+              }}
+              onRemove={(pv) => {
+                if (pv.startsWith("block:")) applyLayout({ blocks: blocks.filter((_, j) => j !== Number(pv.slice(6))) }, null);
+                else toggleSection(pv.slice(5) as SectionState["id"]);
+              }}
             />
           </div>
         </section>
