@@ -56,7 +56,7 @@ export function ImportListingsScreen({ categoryId: fixedCategoryId }: { category
   const photoByName = useMemo(() => new Map(photos.map((f) => [f.name.toLowerCase(), f])), [photos]);
   const taken = useMemo(() => new Set((experiences ?? []).map((x) => x.slug)), [experiences]);
 
-  // What is wrong with each row now: what the sheet said, plus clashes and photos that haven't been added.
+  // What is wrong with each row now: what the sheet said, plus slug clashes. Photos that weren't added are only a note: the listing is still made without them.
   const checked = useMemo(() => {
     const seen = new Map<string, number>();
     (rows ?? []).forEach((r) => seen.set(r.form.slug, (seen.get(r.form.slug) ?? 0) + 1));
@@ -64,8 +64,8 @@ export function ImportListingsScreen({ categoryId: fixedCategoryId }: { category
       const extra: string[] = [];
       if (r.form.slug && taken.has(r.form.slug)) extra.push(`slug "${r.form.slug}" is already used`);
       else if (r.form.slug && (seen.get(r.form.slug) ?? 0) > 1) extra.push(`slug "${r.form.slug}" appears twice in the sheet`);
-      for (const name of [...r.files.gallery, ...r.files.menu, ...r.files.story]) if (!photoByName.has(name.toLowerCase())) extra.push(`photo ${name} not added`);
-      return { ...r, issues: [...r.issues, ...extra] };
+      const missing = [...r.files.gallery, ...r.files.menu, ...r.files.story].filter((name) => !photoByName.has(name.toLowerCase()));
+      return { ...r, issues: [...r.issues, ...extra], missing };
     });
   }, [rows, taken, photoByName]);
   const ok = checked.filter((r) => r.issues.length === 0);
@@ -92,8 +92,11 @@ export function ImportListingsScreen({ categoryId: fixedCategoryId }: { category
   async function onCreate() {
     setBusy(true);
     const out: Result[] = [];
-    for (const { n, form: base, files } of ok) {
+    for (const { n, form: base, files: wanted, missing } of ok) {
       const title = base.title;
+      const have = (names: string[]) => names.filter((name) => photoByName.has(name.toLowerCase()));
+      const files = { gallery: have(wanted.gallery), menu: have(wanted.menu), story: have(wanted.story) };
+      const skipped = missing.length ? `photo${missing.length === 1 ? "" : "s"} skipped (file not added): ${missing.join(", ")}` : undefined;
       try {
         // Story photos go up first; they live inside the listing's content.
         const story = [];
@@ -118,9 +121,9 @@ export function ImportListingsScreen({ categoryId: fixedCategoryId }: { category
           for (const [i, name] of files.gallery.entries()) await uploadExperiencePhotoAdmin(created.id, photoByName.get(name.toLowerCase())!, { alt: title, cover: i === 0 });
           for (const [i, name] of files.menu.entries()) await uploadMenuPageAdmin(created.id, photoByName.get(name.toLowerCase())!, { label: `Page ${i + 1}`, alt: title });
         } catch (err: unknown) {
-          warning = `created, but a photo didn't upload: ${err instanceof Error ? err.message : "upload failed"}`;
+          warning = `a photo didn't upload: ${err instanceof Error ? err.message : "upload failed"}`;
         }
-        out.push({ n, title, id: created.id, warning });
+        out.push({ n, title, id: created.id, warning: [warning, skipped].filter(Boolean).join("; ") || undefined });
       } catch (err: unknown) {
         out.push({ n, title, error: err instanceof Error ? err.message : "Couldn't create." });
       }
@@ -189,7 +192,7 @@ export function ImportListingsScreen({ categoryId: fixedCategoryId }: { category
           <input className={styles.file} type="file" accept=".csv,text/csv" onChange={(e) => void onFile(e)} />
         </label>
         <label className={styles.field}>
-          <span className={styles.label}>Photo files named in the sheet (optional)</span>
+          <span className={styles.label}>Photo files named in the sheet (optional, a missing one is skipped)</span>
           <input className={styles.file} type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={(e) => setPhotos(Array.from(e.target.files ?? []))} />
         </label>
         <p className={`t-body-sm ${styles.hint}`}>
@@ -202,7 +205,7 @@ export function ImportListingsScreen({ categoryId: fixedCategoryId }: { category
         <section className={styles.card}>
           <h2 className={`t-title-sm ${styles.title}`}>3. Check {fileName}</h2>
           <p className={`t-body-sm ${styles.hint}`}>
-            {ok.length} ready{problems.length ? `, ${problems.length} with problems (skipped)` : ""}.
+            {ok.length} ready{problems.length ? `, ${problems.length} with problems (skipped)` : ""}. Photos that aren&apos;t added are left out; the listing is still created.
           </p>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
@@ -213,7 +216,7 @@ export function ImportListingsScreen({ categoryId: fixedCategoryId }: { category
                   <th>Host</th>
                   <th>Layout</th>
                   <th>Status</th>
-                  <th>Problems</th>
+                  <th>Notes</th>
                 </tr>
               </thead>
               <tbody>
@@ -224,7 +227,10 @@ export function ImportListingsScreen({ categoryId: fixedCategoryId }: { category
                     <td>{hosts.find((h) => h.id === r.form.hostId)?.businessName ?? "No host"}</td>
                     <td>{categories.find((c) => c.id === r.form.categoryId)?.name ?? "Own layout"}</td>
                     <td>{r.form.status}</td>
-                    <td className={styles.issue}>{r.issues.join("; ")}</td>
+                    <td className={styles.issue}>
+                      {r.issues.join("; ")}
+                      {r.missing.length ? `${r.issues.length ? " · " : ""}photo${r.missing.length === 1 ? "" : "s"} not added, will be skipped: ${r.missing.join(", ")}` : ""}
+                    </td>
                   </tr>
                 ))}
               </tbody>
