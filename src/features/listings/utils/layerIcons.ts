@@ -1,5 +1,6 @@
 import type { IconName } from "../components/EditorIcon";
 import type { PartId } from "./pageLayout";
+import type { LayoutBlockType } from "@/features/categories/utils/layout";
 import type { BlockType } from "./storyBlocks";
 
 export const PART_ICON: Record<PartId, IconName> = {
@@ -19,7 +20,7 @@ export const PART_ICON: Record<PartId, IconName> = {
   tags: "tag",
 };
 
-export const BLOCK_ICON: Record<BlockType, IconName> = {
+export const BLOCK_ICON: Record<BlockType | LayoutBlockType, IconName> = {
   heading: "heading",
   line: "minus",
   quote: "quote",
@@ -32,4 +33,5 @@ export const BLOCK_ICON: Record<BlockType, IconName> = {
   faq: "help",
   stats: "grid",
   packages: "tag",
+  menu: "file",
 };

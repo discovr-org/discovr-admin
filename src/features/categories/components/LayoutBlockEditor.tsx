@@ -116,6 +116,8 @@ export function LayoutBlockEditor({ block, onChange }: Props) {
         );
       case "faq":
         return <p className={styles.note}>Shows the listing&apos;s FAQs. Hidden when it has none.</p>;
+      case "menu":
+        return <p className={styles.note}>Shows the listing&apos;s menu pages or menu link. Hidden when it has neither. With this block in the story, the separate Menu part is not shown.</p>;
       case "steps":
         return <p className={styles.note}>Shows the listing&apos;s process steps. Hidden when it has none.</p>;
       case "packages":

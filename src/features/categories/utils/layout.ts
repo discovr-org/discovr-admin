@@ -5,6 +5,7 @@
 export type LayoutBlock = { size?: "full" | "half"; show?: boolean; when?: string; space?: "none" | "large"; hide?: "mobile" | "desktop" } & (
   | { type: "heading"; level: "section" | "small"; text?: string; source?: string }
   | { type: "line" }
+  | { type: "menu" }
   | { type: "text"; label?: string; text?: string; source?: string }
   | { type: "quote"; text?: string; source?: string }
   | { type: "checklist"; title: string; source: string }
@@ -57,6 +58,7 @@ export const sourceForm = (key: string | undefined) => SOURCES.find((s) => s.key
 export const LAYOUT_LABEL: Record<LayoutBlockType, string> = {
   heading: "Heading",
   line: "Divider",
+  menu: "Menu",
   text: "Text",
   quote: "Quote",
   checklist: "Checklist",
@@ -102,7 +104,7 @@ export function layoutBlockLabel(b: LayoutBlock): string {
 
 /** Every listing field a block reads, so the listing editor can open the right card. */
 export function blockSources(b: LayoutBlock): string[] {
-  const own = "source" in b && b.source ? [b.source] : b.type === "faq" ? ["faqs"] : b.type === "steps" ? ["steps"] : b.type === "packages" ? ["packages"] : [];
+  const own = "source" in b && b.source ? [b.source] : b.type === "faq" ? ["faqs"] : b.type === "menu" ? ["menu"] : b.type === "steps" ? ["steps"] : b.type === "packages" ? ["packages"] : [];
   const more = b.type === "forNotFor" ? b.columns.map((c) => c.source) : b.type === "stats" ? b.tiles.map((t) => t.source) : [];
   return [...own, ...more].filter(Boolean);
 }
@@ -130,6 +132,7 @@ export const LAYOUT_WIDGETS: Array<{ name: string; block: LayoutBlock }> = [
   { name: "FAQ", block: { type: "faq", source: "faqs" } },
   { name: "Age & fitness", block: { type: "stats", tiles: [{ label: "Age", source: "ageGroup" }, { label: "Fitness level", source: "fitnessLevel" }] } },
   { name: "Packages & prices", block: { type: "packages", title: "Packages", source: "packages" } },
+  { name: "Menu", block: { type: "menu" } },
   { name: "Divider", block: { type: "line" } },
 ];
 

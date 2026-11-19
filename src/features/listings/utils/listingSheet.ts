@@ -185,6 +185,7 @@ const SOURCE_COLUMNS: Record<string, string[]> = {
   title: ["title"], about: ["about"], verdict: ["verdict"], pitch: ["pitch"], healthAdvisory: ["health_advisory"], additionalInfo: ["additional_info"],
   fitnessLevel: ["fitness_level"], instructorRatio: ["instructor_ratio"], ageGroup: ["age_group"], bestTime: ["best_time"], priceNarrative: ["price_narrative"],
   termsDetail: ["terms_detail"], included: ["included"], notIncluded: ["not_included"], carry: ["things_to_carry"], knowBeforeYouGo: ["know_before_you_go"],
+  menu: ["menu_link", ...photoKeys("menu")],
   faqs: [1, 2, 3, 4, 5].flatMap((n) => [`faq_${n}_question`, `faq_${n}_answer`]),
   steps: [1, 2, 3, 4, 5, 6].flatMap((n) => [`step_${n}_title`, `step_${n}_caption`]),
   packages: [1, 2, 3, 4, 5].flatMap((n) => [`package_${n}_name`, `package_${n}_price`, `package_${n}_detail`]),
