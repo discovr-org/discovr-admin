@@ -15,6 +15,8 @@ export type CatalogExperienceSummary = {
   hasPhoto: boolean;
 };
 
+export type ActionButtonId = "call" | "directions" | "instagram" | "whatsapp" | "website" | "share";
+
 export type HostCredit = "hosted" | "run" | "owned";
 
 export type CatalogHostSummary = {
@@ -62,6 +64,8 @@ export type ExperienceContent = {
   tagsOnDisplay?: string[];
   faqs?: Array<{ q: string; a: string }>;
   [key: string]: unknown;
+  /** Which buttons the Action buttons row shows, in order. Missing = Call, Directions, Instagram, Share. */
+  actionButtons?: ActionButtonId[];
   /** "link" = the button opens `links.book` as "Book on <host>"; "custom" = same URL with `bookLabel`; otherwise it calls. */
   bookVia?: "call" | "link" | "custom";
   /** The label on the custom button. */
@@ -77,6 +81,7 @@ export type ExperienceContent = {
     book?: ContentLink;
     whatsapp?: ContentLink;
     instagram?: ContentLink;
+    website?: ContentLink;
     menu?: ContentLink;
   };
 };

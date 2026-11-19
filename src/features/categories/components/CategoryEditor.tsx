@@ -14,6 +14,8 @@ import { LivePreview } from "@/features/listings/components/LivePreview";
 import { PaneHead } from "@/features/listings/components/PaneHead";
 import { PART_ICON, layoutBlockIcon } from "@/features/listings/utils/layerIcons";
 import { PART_META, readFixedShown, readSections, writeSections, type PartId, type SectionState } from "@/features/listings/utils/pageLayout";
+import { ActionButtonsField } from "@/features/listings/components/ActionButtonsField";
+import type { ActionButtonId } from "@/shared/utils/catalogApi";
 import { downloadCsv } from "@/features/listings/utils/csv";
 import { hintRow, sheetHeader } from "@/features/listings/utils/listingSheet";
 import { moveBlock } from "@/features/listings/utils/storyBlocks";
@@ -22,7 +24,7 @@ import { deleteCategory, fetchCategory, patchCategory } from "../utils/categoryA
 import { LAYOUT_HALF_OK, LAYOUT_LABEL, LAYOUT_WIDGETS, layoutBlockLabel, type Category, type LayoutBlock } from "../utils/layout";
 import { LayoutBlockEditor } from "./LayoutBlockEditor";
 
-type Snap = { story: LayoutBlock[]; order: SectionState[]; fixed: { more: boolean; booking: boolean } };
+type Snap = { story: LayoutBlock[]; order: SectionState[]; fixed: { more: boolean; booking: boolean }; buttons: ActionButtonId[] | undefined };
 
 /** Edit a category's layout: the order of the page, its story blocks, and which listing field each block shows. */
 export function CategoryEditor({ id }: { id: string }) {
@@ -36,6 +38,7 @@ export function CategoryEditor({ id }: { id: string }) {
   const [story, setStory] = useState<LayoutBlock[]>([]);
   const [order, setOrder] = useState<SectionState[]>(() => readSections(undefined));
   const [fixed, setFixed] = useState({ more: true, booking: true });
+  const [buttons, setButtons] = useState<ActionButtonId[] | undefined>(undefined);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sel, setSel] = useState<Sel>(null);
@@ -59,6 +62,7 @@ export function CategoryEditor({ id }: { id: string }) {
         setName(c.name);
         setSlug(c.slug);
         setStory((c.layout.story ?? []) as LayoutBlock[]);
+        setButtons(c.layout.actionButtons);
         setOrder(readSections(c.layout.sections));
         setFixed({ more: readFixedShown(c.layout.sections, "more"), booking: readFixedShown(c.layout.sections, "booking") });
       })
@@ -75,11 +79,12 @@ export function CategoryEditor({ id }: { id: string }) {
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
-  const snap = (): Snap => ({ story, order, fixed });
+  const snap = (): Snap => ({ story, order, fixed, buttons });
   function restore(s: Snap) {
     setStory(s.story);
     setOrder(s.order);
     setFixed(s.fixed);
+    setButtons(s.buttons);
     setDirty(true);
     setSel(null);
   }
@@ -109,7 +114,7 @@ export function CategoryEditor({ id }: { id: string }) {
   });
 
   /** One place that changes the layout, so each change is one undo step. */
-  function apply(next: { story?: LayoutBlock[]; order?: SectionState[]; fixed?: Partial<typeof fixed> }, to?: Sel, coalesce = false) {
+  function apply(next: { story?: LayoutBlock[]; order?: SectionState[]; fixed?: Partial<typeof fixed>; buttons?: ActionButtonId[] | undefined }, to?: Sel, coalesce = false) {
     const quick = typing.current !== 0;
     window.clearTimeout(typing.current);
     typing.current = coalesce ? window.setTimeout(() => (typing.current = 0), 700) : 0;
@@ -120,6 +125,7 @@ export function CategoryEditor({ id }: { id: string }) {
     if (next.story) setStory(next.story);
     if (next.order) setOrder(next.order);
     if (next.fixed) setFixed({ ...fixed, ...next.fixed });
+    if ("buttons" in next) setButtons(next.buttons);
     setDirty(true);
     if (to !== undefined) select(to);
   }
@@ -134,7 +140,7 @@ export function CategoryEditor({ id }: { id: string }) {
     if (category.listingCount && !window.confirm(`This changes the page for ${category.listingCount} listing${category.listingCount === 1 ? "" : "s"}. Save?`)) return;
     setSaving(true);
     try {
-      const saved = await patchCategory(id, { name: name.trim(), slug: slug.trim(), layout: { sections: writeSections(order, fixed), story } });
+      const saved = await patchCategory(id, { name: name.trim(), slug: slug.trim(), layout: { sections: writeSections(order, fixed), story, actionButtons: buttons } });
       setCategory({ ...saved, listingCount: category.listingCount });
       setDirty(false);
       toast.success("Saved.");
@@ -234,7 +240,7 @@ export function CategoryEditor({ id }: { id: string }) {
           className={styles.btn}
           title="Download a sheet with the columns this layout needs"
           onClick={() => {
-            const layout = { sections: writeSections(order, fixed), story };
+            const layout = { sections: writeSections(order, fixed), story, actionButtons: buttons };
             downloadCsv(`${slug.trim() || "category"}-sheet.csv`, [sheetHeader(layout), hintRow(layout)]);
           }}
         >
@@ -338,6 +344,7 @@ export function CategoryEditor({ id }: { id: string }) {
             {tab === "edit" && block && sel?.kind === "block" ? (
               <div className={styles.paneInner}>
                 <PaneHead icon={layoutBlockIcon(block)} title={layoutBlockLabel(block)} sub={LAYOUT_LABEL[block.type]} />
+                {block.type === "part" && block.id === "actions" ? <ActionButtonsField value={buttons} onChange={(v) => apply({ buttons: v })} /> : null}
                 {LAYOUT_HALF_OK.includes(block.type) ? (
                   <div className={styles.isec}>
                     <h4 className={styles.isecTitle}>Widget size</h4>
@@ -400,6 +407,7 @@ export function CategoryEditor({ id }: { id: string }) {
                       ? "These fields aren't part of the page layout."
                       : "The content of this part comes from the listing. Here you choose where it sits and whether it shows."}
                 </p>
+                {selPart === "actions" ? <ActionButtonsField value={buttons} onChange={(v) => apply({ buttons: v })} /> : null}
                 {order.some((x) => x.id === selPart) ? (
                   <>
                     <label className={styles.area}>
@@ -473,7 +481,7 @@ export function CategoryEditor({ id }: { id: string }) {
           {sampleId ? (
             <LivePreview
               id={sampleId}
-              draft={{ categoryId: id, categoryLayout: { sections: writeSections(order, fixed), story } } as never}
+              draft={{ categoryId: id, categoryLayout: { sections: writeSections(order, fixed), story, actionButtons: buttons } } as never}
               mediaKey=""
               selected={pvId(sel)}
               hover={hoverId}

@@ -16,7 +16,7 @@ const YES = ["yes", "y", "true", "1"];
 const NO = ["no", "n", "false", "0"];
 const splitList = (v: string, commas = false) => v.split(commas ? /\r?\n|,| \| / : /\r?\n| \| /).map((s) => s.trim()).filter(Boolean);
 
-type StrKey = "title" | "slug" | "verdict" | "about" | "placeName" | "placeNeighborhood" | "priceFromInr" | "durationMinutes" | "groupSizeMax" | "groupSizeLabel" | "days" | "timeSlot" | "altTimeSlot" | "bestTime" | "ageGroup" | "minPeople" | "durationLabel" | "aka" | "priceNarrative" | "priceUnit" | "meetingPoint" | "phones" | "additionalInfo" | "termsDetail" | "pitch" | "fitnessLevel" | "instructorRatio" | "healthAdvisory" | "policySummary" | "menuUrl" | "instagramUrl" | "whatsappUrl" | "bookUrl" | "bookLabel" | "barText" | "barNote";
+type StrKey = "title" | "slug" | "verdict" | "about" | "placeName" | "placeNeighborhood" | "priceFromInr" | "durationMinutes" | "groupSizeMax" | "groupSizeLabel" | "days" | "timeSlot" | "altTimeSlot" | "bestTime" | "ageGroup" | "minPeople" | "durationLabel" | "aka" | "priceNarrative" | "priceUnit" | "meetingPoint" | "phones" | "additionalInfo" | "termsDetail" | "pitch" | "fitnessLevel" | "instructorRatio" | "healthAdvisory" | "policySummary" | "menuUrl" | "instagramUrl" | "whatsappUrl" | "websiteUrl" | "bookUrl" | "bookLabel" | "barText" | "barNote";
 type ListKey = "tags" | "carry" | "knowBeforeYouGo" | "included" | "notIncluded" | "bookingNotes" | "cancellationNotes";
 
 const str = (key: string, field: StrKey, hint: string): Col => ({ key, hint, get: (f) => f[field], set: (f, v) => ({ ...f, [field]: v.trim() }) });
@@ -131,6 +131,7 @@ const COLUMNS: Col[] = [
   str("menu_link", "menuUrl", "Menu URL."),
   str("instagram_link", "instagramUrl", "Instagram URL."),
   str("whatsapp_link", "whatsappUrl", "WhatsApp URL."),
+  str("website_link", "websiteUrl", "Website URL."),
   choice("book_via", "bookVia", ["call", "link", "custom"], "How guests book."),
   str("book_label", "bookLabel", "Button label when book_via is custom."),
   str("book_link", "bookUrl", "Booking URL when book_via is link or custom."),
@@ -175,7 +176,7 @@ const ALL = [...FIRST, ...COLUMNS.map(({ key, hint }) => ({ key, hint })), ...PH
 const PART_COLUMNS: Record<string, string[]> = {
   info: ["price_from", "price_narrative", "price_unit", "taxes", "format", "walk_in", "duration_minutes", "duration_label", "group_size_max", "group_size_label", "days", "time_slot", "alt_days", "alt_time_slot", "closed_days", "best_time", "age_group", "min_people", "meeting_point"],
   verdict: ["verdict"],
-  actions: ["phones", "instagram_link", "whatsapp_link", "map_link"],
+  actions: ["phones", "instagram_link", "whatsapp_link", "website_link", "map_link"],
   about: ["about"],
   policy: ["policy_summary", "booking_notes", "cancellation_notes", "terms_detail", "show_final_terms_note"],
 };

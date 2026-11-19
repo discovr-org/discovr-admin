@@ -36,6 +36,7 @@ import { ListingLayers, type LayerItem, type Sel } from "./ListingLayers";
 import { fetchCategories } from "@/features/categories/utils/categoryApi";
 import { LAYOUT_LABEL, blockSources, layoutBlockLabel, sourceForm, sourceLabel, type Category } from "@/features/categories/utils/layout";
 import { Ic } from "./EditorIcon";
+import { ActionButtonsField } from "./ActionButtonsField";
 import { LivePreview } from "./LivePreview";
 import { PaneHead } from "./PaneHead";
 import { StoryContentFields } from "./StoryContentFields";
@@ -108,6 +109,7 @@ export type FormState = {
   hostId: string;
   hostWas: string;
   whatsappUrl: string;
+  websiteUrl: string;
   instagramUrl: string;
   /** The category whose layout this listing uses, and what is saved (so a plain save sends nothing about it). */
   categoryId: string | null;
@@ -195,6 +197,7 @@ export function toForm(row: CatalogExperienceAdmin): FormState {
     hostWas: row.hostId ?? "",
     whatsappUrl: c.links?.whatsapp?.url ?? "",
     instagramUrl: c.links?.instagram?.url ?? "",
+    websiteUrl: c.links?.website?.url ?? "",
     categoryId: (row as CatalogExperienceAdmin & { categoryId?: string | null }).categoryId ?? null,
     categoryWas: (row as CatalogExperienceAdmin & { categoryId?: string | null }).categoryId ?? null,
   };
@@ -211,6 +214,7 @@ function buildContent(form: FormState): ExperienceContent {
   setLink("book", form.bookUrl);
   setLink("whatsapp", form.whatsappUrl);
   setLink("instagram", form.instagramUrl);
+  setLink("website", form.websiteUrl);
 
   const tags = form.tags.map((t) => t.trim()).filter(Boolean);
 
@@ -1024,6 +1028,13 @@ export function EditListingScreen({ id }: Props) {
               <div className={styles2.paneInner} style={{ paddingBottom: 0 }}>
                 <PaneHead icon={PART_ICON[selPart]} title={PART_META[selPart].label} sub={PART_META[selPart].hint} />
                 {partNote[selPart] ? <p className={styles2.note}>{partNote[selPart]}</p> : null}
+                {selPart === "actions" ? (
+                  locked ? (
+                    <p className={styles2.note}>Which buttons show is set in the category layout.</p>
+                  ) : (
+                    <ActionButtonsField value={form.baseContent.actionButtons} onChange={(v) => patchField("baseContent", { ...form.baseContent, actionButtons: v })} />
+                  )
+                ) : null}
                 {partShow(selPart) !== null && !locked ? (
                   <div className={styles2.ifoot}>
                     <button
@@ -1391,6 +1402,13 @@ export function EditListingScreen({ id }: Props) {
               type="url"
               value={form.instagramUrl}
               onChange={(e) => patchField("instagramUrl", e.target.value)}
+            />
+            <Input
+              label="Website URL"
+              type="url"
+              value={form.websiteUrl}
+              onChange={(e) => patchField("websiteUrl", e.target.value)}
+              hint="Shows as a Website button once the Action buttons row includes it."
             />
           </div>
         </div>

@@ -3,6 +3,7 @@
  * keeps only its content. Mirrors `discovr-frontend/src/features/experience/utils/layout.ts`: keep the two in step.
  */
 import { PART_META } from "@/features/listings/utils/pageLayout";
+import type { ActionButtonId } from "@/shared/utils/catalogApi";
 
 /** Page parts a layout can place inside its story. About is the story itself. */
 export const PART_BLOCK_IDS = ["title", "info", "verdict", "actions", "menu", "policy", "host", "reviews"] as const;
@@ -25,7 +26,7 @@ export type LayoutBlock = { size?: "full" | "half"; show?: boolean; when?: strin
 );
 
 export type LayoutBlockType = LayoutBlock["type"];
-export type CategoryLayout = { sections?: Array<{ id: string; show?: boolean }>; story?: LayoutBlock[] };
+export type CategoryLayout = { sections?: Array<{ id: string; show?: boolean }>; story?: LayoutBlock[]; actionButtons?: ActionButtonId[] };
 
 export type Category = { id: string; slug: string; name: string; layout: CategoryLayout; listingCount?: number };
 
