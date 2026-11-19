@@ -177,7 +177,6 @@ const PART_COLUMNS: Record<string, string[]> = {
   verdict: ["verdict"],
   actions: ["phones", "instagram_link", "whatsapp_link", "map_link"],
   about: ["about"],
-  menu: ["menu_link", ...photoKeys("menu")],
   policy: ["policy_summary", "booking_notes", "cancellation_notes", "terms_detail", "show_final_terms_note"],
 };
 /** What a story block's field needs in the sheet. */
@@ -206,6 +205,7 @@ export function sheetKeys(layout?: CategoryLayout): string[] {
   if (readFixedShown(layout.sections, "booking")) add(["book_via", "book_label", "book_link", "left_text", "left_note"]);
   for (const b of layout.story ?? []) {
     if (b.show === false) continue;
+    if (b.type === "part") add(PART_COLUMNS[b.id]);
     for (const src of [...blockSources(b), ...(b.when ? [b.when] : [])]) add(SOURCE_COLUMNS[src]);
   }
   return ALL.map((c) => c.key).filter((k) => need.has(k) && k !== "category");

@@ -2,10 +2,16 @@
  * A category's page layout. Story blocks name the listing field they fill (`source`), so a listing
  * keeps only its content. Mirrors `discovr-frontend/src/features/experience/utils/layout.ts`: keep the two in step.
  */
+import { PART_META } from "@/features/listings/utils/pageLayout";
+
+/** Page parts a layout can place inside its story. About is the story itself. */
+export const PART_BLOCK_IDS = ["title", "info", "verdict", "actions", "menu", "policy", "host", "reviews"] as const;
+export type PartBlockId = (typeof PART_BLOCK_IDS)[number];
+
 export type LayoutBlock = { size?: "full" | "half"; show?: boolean; when?: string; space?: "none" | "large"; hide?: "mobile" | "desktop" } & (
   | { type: "heading"; level: "section" | "small"; text?: string; source?: string }
   | { type: "line" }
-  | { type: "menu" }
+  | { type: "part"; id: PartBlockId }
   | { type: "text"; label?: string; text?: string; source?: string }
   | { type: "quote"; text?: string; source?: string }
   | { type: "checklist"; title: string; source: string }
@@ -58,7 +64,7 @@ export const sourceForm = (key: string | undefined) => SOURCES.find((s) => s.key
 export const LAYOUT_LABEL: Record<LayoutBlockType, string> = {
   heading: "Heading",
   line: "Divider",
-  menu: "Menu",
+  part: "Page part",
   text: "Text",
   quote: "Quote",
   checklist: "Checklist",
@@ -92,6 +98,8 @@ export function layoutBlockLabel(b: LayoutBlock): string {
       return sourceLabel(b.source);
     case "stats":
       return b.tiles.map((t) => t.label).filter(Boolean).join(" · ") || LAYOUT_LABEL.stats;
+    case "part":
+      return PART_META[b.id].label;
     case "faq":
     case "steps":
       return LAYOUT_LABEL[b.type];
@@ -104,7 +112,7 @@ export function layoutBlockLabel(b: LayoutBlock): string {
 
 /** Every listing field a block reads, so the listing editor can open the right card. */
 export function blockSources(b: LayoutBlock): string[] {
-  const own = "source" in b && b.source ? [b.source] : b.type === "faq" ? ["faqs"] : b.type === "menu" ? ["menu"] : b.type === "steps" ? ["steps"] : b.type === "packages" ? ["packages"] : [];
+  const own = "source" in b && b.source ? [b.source] : b.type === "faq" ? ["faqs"] : b.type === "steps" ? ["steps"] : b.type === "packages" ? ["packages"] : [];
   const more = b.type === "forNotFor" ? b.columns.map((c) => c.source) : b.type === "stats" ? b.tiles.map((t) => t.source) : [];
   return [...own, ...more].filter(Boolean);
 }
@@ -132,8 +140,8 @@ export const LAYOUT_WIDGETS: Array<{ name: string; block: LayoutBlock }> = [
   { name: "FAQ", block: { type: "faq", source: "faqs" } },
   { name: "Age & fitness", block: { type: "stats", tiles: [{ label: "Age", source: "ageGroup" }, { label: "Fitness level", source: "fitnessLevel" }] } },
   { name: "Packages & prices", block: { type: "packages", title: "Packages", source: "packages" } },
-  { name: "Menu", block: { type: "menu" } },
   { name: "Divider", block: { type: "line" } },
+  ...PART_BLOCK_IDS.map((id): { name: string; block: LayoutBlock } => ({ name: PART_META[id].label, block: { type: "part", id } })),
 ];
 
 /** Starting layouts. They follow what the guest app builds today for trips and places. */

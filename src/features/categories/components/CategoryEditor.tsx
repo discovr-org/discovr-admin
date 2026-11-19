@@ -12,7 +12,7 @@ import { Ic } from "@/features/listings/components/EditorIcon";
 import { ListingLayers, type LayerItem, type Sel } from "@/features/listings/components/ListingLayers";
 import { LivePreview } from "@/features/listings/components/LivePreview";
 import { PaneHead } from "@/features/listings/components/PaneHead";
-import { BLOCK_ICON, PART_ICON } from "@/features/listings/utils/layerIcons";
+import { PART_ICON, layoutBlockIcon } from "@/features/listings/utils/layerIcons";
 import { PART_META, readFixedShown, readSections, writeSections, type PartId, type SectionState } from "@/features/listings/utils/pageLayout";
 import { downloadCsv } from "@/features/listings/utils/csv";
 import { hintRow, sheetHeader } from "@/features/listings/utils/listingSheet";
@@ -160,7 +160,7 @@ export function CategoryEditor({ id }: { id: string }) {
 
   const selPart = sel?.kind === "part" ? sel.id : null;
   const block = sel?.kind === "block" ? story[sel.index] : undefined;
-  const items: LayerItem[] = story.map((b) => ({ label: layoutBlockLabel(b), type: LAYOUT_LABEL[b.type], icon: BLOCK_ICON[b.type], half: b.size === "half", hidden: b.show === false }));
+  const items: LayerItem[] = story.map((b) => ({ label: layoutBlockLabel(b), type: LAYOUT_LABEL[b.type], icon: layoutBlockIcon(b), half: b.size === "half", hidden: b.show === false, partId: b.type === "part" ? b.id : undefined }));
   const pvId = (s: Sel): string | null => (s?.kind === "block" ? `block:${s.index}` : s?.kind === "part" && s.id !== "faqs" && s.id !== "tags" ? `part:${s.id}` : null);
   const selectFromLayers = (next: Sel) => {
     select(next);
@@ -181,6 +181,24 @@ export function CategoryEditor({ id }: { id: string }) {
   const toggleSection = (sid: SectionState["id"]) => apply({ order: order.map((x) => (x.id === sid ? { ...x, show: !x.show } : x)) });
   const toggleBlock = (i: number) => apply({ story: story.map((b, j) => (j === i ? { ...b, show: b.show === false ? undefined : false } : b)) });
   const patchBlock = (i: number, b: LayoutBlock, coalesce = false) => apply({ story: story.map((x, j) => (j === i ? b : x)) }, undefined, coalesce);
+  const widgetCard = (w: (typeof LAYOUT_WIDGETS)[number], i: number) => (
+    <button
+      key={w.name}
+      type="button"
+      className={styles.wcard}
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/widget", String(i));
+        e.dataTransfer.effectAllowed = "copy";
+      }}
+      onClick={() => insertAt(sel?.kind === "block" ? sel.index + 1 : story.length, i)}
+    >
+      <div className={styles.wmeta}>
+        <span className={styles.wname}>{w.name}</span>
+        <span className={styles.chip}>{w.block.type === "part" ? "Part" : w.block.size === "half" ? "Half" : "Full"}</span>
+      </div>
+    </button>
+  );
   const insertAt = (at: number, widget: number) => apply({ story: [...story.slice(0, at), structuredClone(LAYOUT_WIDGETS[widget].block), ...story.slice(at)] }, { kind: "block", index: at });
   const partShown = (pid: PartId) => (pid === "more" || pid === "booking" ? fixed[pid] : order.find((x) => x.id === pid)?.show);
 
@@ -283,26 +301,10 @@ export function CategoryEditor({ id }: { id: string }) {
                 </div>
                 <p className={styles.note}>Click one to add it after the selected block, or drag it onto Layers or the phone. Each block shows a field from the listing, and hides itself when that field is empty.</p>
                 <div className={styles.group}>Story blocks</div>
-                <div className={styles.widgetGrid}>
-                  {LAYOUT_WIDGETS.map((w, i) => (
-                    <button
-                      key={w.name}
-                      type="button"
-                      className={styles.wcard}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData("text/widget", String(i));
-                        e.dataTransfer.effectAllowed = "copy";
-                      }}
-                      onClick={() => insertAt(sel?.kind === "block" ? sel.index + 1 : story.length, i)}
-                    >
-                      <div className={styles.wmeta}>
-                        <span className={styles.wname}>{w.name}</span>
-                        <span className={styles.chip}>{w.block.size === "half" ? "Half" : "Full"}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                <div className={styles.widgetGrid}>{LAYOUT_WIDGETS.map((w, i) => (w.block.type === "part" ? null : widgetCard(w, i)))}</div>
+                <div className={styles.group}>Page parts</div>
+                <p className={styles.note}>Put a part of the page, like Menu or Reviews, in the middle of the story. It leaves its usual place and shows here.</p>
+                <div className={styles.widgetGrid}>{LAYOUT_WIDGETS.map((w, i) => (w.block.type === "part" ? widgetCard(w, i) : null))}</div>
               </div>
             ) : null}
 
@@ -335,7 +337,7 @@ export function CategoryEditor({ id }: { id: string }) {
 
             {tab === "edit" && block && sel?.kind === "block" ? (
               <div className={styles.paneInner}>
-                <PaneHead icon={BLOCK_ICON[block.type]} title={layoutBlockLabel(block)} sub={LAYOUT_LABEL[block.type]} />
+                <PaneHead icon={layoutBlockIcon(block)} title={layoutBlockLabel(block)} sub={LAYOUT_LABEL[block.type]} />
                 {LAYOUT_HALF_OK.includes(block.type) ? (
                   <div className={styles.isec}>
                     <h4 className={styles.isecTitle}>Widget size</h4>

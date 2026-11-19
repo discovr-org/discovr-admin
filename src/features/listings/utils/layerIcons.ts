@@ -1,6 +1,6 @@
 import type { IconName } from "../components/EditorIcon";
 import type { PartId } from "./pageLayout";
-import type { LayoutBlockType } from "@/features/categories/utils/layout";
+import type { LayoutBlock, LayoutBlockType } from "@/features/categories/utils/layout";
 import type { BlockType } from "./storyBlocks";
 
 export const PART_ICON: Record<PartId, IconName> = {
@@ -20,6 +20,9 @@ export const PART_ICON: Record<PartId, IconName> = {
   tags: "tag",
 };
 
+/** The icon for a layout block. A page part shows its own icon. */
+export const layoutBlockIcon = (b: LayoutBlock): IconName => (b.type === "part" ? PART_ICON[b.id] : BLOCK_ICON[b.type]);
+
 export const BLOCK_ICON: Record<BlockType | LayoutBlockType, IconName> = {
   heading: "heading",
   line: "minus",
@@ -33,5 +36,5 @@ export const BLOCK_ICON: Record<BlockType | LayoutBlockType, IconName> = {
   faq: "help",
   stats: "grid",
   packages: "tag",
-  menu: "file",
+  part: "grid",
 };

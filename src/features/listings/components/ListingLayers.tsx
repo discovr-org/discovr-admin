@@ -7,7 +7,7 @@ import styles from "../styles/ListingEditor.module.css";
 import { Ic, type IconName } from "./EditorIcon";
 
 /** One story row in Layers. Listings and categories both map their blocks to this. */
-export type LayerItem = { label: string; type: string; icon: IconName; half?: boolean; hidden?: boolean };
+export type LayerItem = { label: string; type: string; icon: IconName; half?: boolean; hidden?: boolean; /** Set when the row is a page part placed in the story. */ partId?: string };
 
 export type Sel = { kind: "part"; id: PartId } | { kind: "block"; index: number } | null;
 
@@ -183,7 +183,9 @@ export function ListingLayers(p: Props) {
   };
 
   const rows: React.ReactNode[] = [partRow("gallery", { locked: true })];
+  const inStory = new Set(p.items.flatMap((b) => (b.partId ? [b.partId] : [])));
   p.order.forEach((s, i) => {
+    if (s.id !== "about" && inStory.has(s.id)) return; // shown where the story holds it
     rows.push(partRow(s.id, p.locked ? { show: s.show } : { show: s.show, onToggle: () => p.onToggleSection(s.id), drag: i }));
     if (s.id === "about") {
       if (p.items.length === 0) {

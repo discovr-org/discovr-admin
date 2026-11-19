@@ -27,7 +27,7 @@ import {
 import { useToast } from "@/shared/components/Toast";
 import styles from "../styles/EditListingScreen.module.css";
 import { ListingPhotos } from "./ListingPhotos";
-import { BLOCK_ICON, PART_ICON } from "../utils/layerIcons";
+import { BLOCK_ICON, PART_ICON, layoutBlockIcon } from "../utils/layerIcons";
 import { BLOCK_LABEL, HALF_OK, blockLabel, WIDGETS, cleanBlocks, moveBlock, parseBlocks, seedBlocks, type StoryBlock } from "../utils/storyBlocks";
 import { FORMS, PART_META, readFixedShown, readSections, writeSections, type PartId, type SectionState } from "../utils/pageLayout";
 import styles2 from "../styles/ListingEditor.module.css";
@@ -399,7 +399,9 @@ export function EditListingScreen({ id }: Props) {
   const typingTimer = useRef(0);
 
   function select(next: Sel) {
-    setSel(next);
+    // In a category listing, a page part placed in the story is edited as that part.
+    const picked = next?.kind === "block" && form?.categoryId ? categories.find((c) => c.id === form.categoryId)?.layout.story?.[next.index] : undefined;
+    setSel(picked?.type === "part" ? { kind: "part", id: picked.id } : next);
     setTab("edit");
   }
 
@@ -745,7 +747,7 @@ export function EditListingScreen({ id }: Props) {
   const shownOrder = locked ? readSections(category?.layout.sections) : order;
   const shownFixed = locked ? { more: readFixedShown(category?.layout.sections, "more"), booking: readFixedShown(category?.layout.sections, "booking") } : fixed;
   const layerItems: LayerItem[] = locked
-    ? layoutStory.map((b) => ({ label: layoutBlockLabel(b), type: LAYOUT_LABEL[b.type], icon: BLOCK_ICON[b.type], half: b.size === "half", hidden: b.show === false }))
+    ? layoutStory.map((b) => ({ label: layoutBlockLabel(b), type: LAYOUT_LABEL[b.type], icon: layoutBlockIcon(b), half: b.size === "half", hidden: b.show === false, partId: b.type === "part" ? b.id : undefined }))
     : blocks.map((b) => ({ label: blockLabel(b), type: BLOCK_LABEL[b.type] ?? b.type, icon: BLOCK_ICON[b.type] ?? "type", half: b.size === "half", hidden: b.show === false }));
   const layoutBlock = locked && sel?.kind === "block" ? layoutStory[sel.index] : undefined;
   const selPart = sel?.kind === "part" ? sel.id : null;
@@ -786,7 +788,10 @@ export function EditListingScreen({ id }: Props) {
     applyLayout({ order: next });
   };
   /** The id the live preview gives a selection. FAQs and tags have no spot on the page. */
-  const pvId = (s: Sel): string | null => (s?.kind === "block" ? `block:${s.index}` : s?.kind === "part" && s.id !== "faqs" && s.id !== "tags" ? `part:${s.id}` : null);
+  // A part placed in the story sits in the phone as that block, so it is found by the block's number.
+  const storySlot = (id: PartId) => (locked ? layoutStory.findIndex((b) => b.type === "part" && b.id === id) : -1);
+  const pvId = (s: Sel): string | null =>
+    s?.kind === "block" ? `block:${s.index}` : s?.kind === "part" && s.id !== "faqs" && s.id !== "tags" ? (storySlot(s.id) >= 0 ? `block:${storySlot(s.id)}` : `part:${s.id}`) : null;
   const selectFromLayers = (next: Sel) => {
     select(next);
     const id = pvId(next);
@@ -1006,7 +1011,7 @@ export function EditListingScreen({ id }: Props) {
 
             {tab === "edit" && layoutBlock && sel?.kind === "block" ? (
               <div className={styles2.paneInner} style={{ paddingBottom: 0 }}>
-                <PaneHead icon={BLOCK_ICON[layoutBlock.type]} title={layoutBlockLabel(layoutBlock)} sub={`${LAYOUT_LABEL[layoutBlock.type]} · from ${category?.name ?? "category"}`} />
+                <PaneHead icon={layoutBlockIcon(layoutBlock)} title={layoutBlockLabel(layoutBlock)} sub={`${LAYOUT_LABEL[layoutBlock.type]} · from ${category?.name ?? "category"}`} />
                 <p className={styles2.note}>
                   {blockSources(layoutBlock).length
                     ? `Shows: ${blockSources(layoutBlock).map(sourceLabel).join(", ")}. Fill it in below. The block hides itself when it is empty.`
