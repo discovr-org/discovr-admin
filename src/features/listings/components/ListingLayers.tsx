@@ -34,6 +34,10 @@ type Props = {
   onStart: () => void;
   /** A widget card was dropped here; `at` is the block index to insert before. */
   onDropWidget: (widget: number, at: number) => void;
+  /** A page part row was dropped into the story: `sectionIndex` is its row in `order`, `at` the block index to insert before. */
+  onPartToStory?: (sectionIndex: number, at: number) => void;
+  /** A page part placed in the story was dropped on a page row: `sectionIndex` is the row it takes the place of. */
+  onPartToSection?: (blockIndex: number, sectionIndex: number) => void;
 };
 
 /** Left column: the page top to bottom, as in the prototype. Drag rows to reorder; the eye hides a part on the guest page. */
@@ -42,6 +46,8 @@ export function ListingLayers(p: Props) {
   const [dragBlock, setDragBlock] = useState<number | null>(null);
   const [over, setOver] = useState<string | null>(null);
   const isPart = (id: PartId) => p.sel?.kind === "part" && p.sel.id === id;
+  // A page part placed in the story can be dragged back out onto a page row.
+  const partBlockDragged = () => Boolean(p.onPartToSection) && dragBlock !== null && Boolean(p.items[dragBlock]?.partId);
   const clear = () => {
     setDragSec(null);
     setDragBlock(null);
@@ -56,7 +62,7 @@ export function ListingLayers(p: Props) {
       isPart(id) ? styles.layerOn : "",
       hidden ? styles.layerHidden : "",
       p.hover === `part:${id}` ? styles.layerHl : "",
-      over === `s${id}` && dragSec !== null ? styles.layerOver : "",
+      over === `s${id}` && (dragSec !== null || partBlockDragged()) ? styles.layerOver : "",
       opts.drag === undefined ? styles.noGrip : "",
     ].join(" ");
     return (
@@ -72,12 +78,15 @@ export function ListingLayers(p: Props) {
           setDragSec(opts.drag);
         }}
         onDragOver={(e) => {
-          if (dragSec === null || opts.drag === undefined) return;
+          if (opts.drag === undefined || (dragSec === null && !partBlockDragged())) return;
           e.preventDefault();
           setOver(`s${id}`);
         }}
         onDrop={() => {
-          if (dragSec !== null && opts.drag !== undefined) p.onMoveSection(dragSec, opts.drag);
+          if (opts.drag !== undefined) {
+            if (dragSec !== null) p.onMoveSection(dragSec, opts.drag);
+            else if (dragBlock !== null && partBlockDragged()) p.onPartToSection?.(dragBlock, opts.drag);
+          }
           clear();
         }}
         onDragEnd={clear}
@@ -145,6 +154,7 @@ export function ListingLayers(p: Props) {
           const w = e.dataTransfer.getData("text/widget");
           if (w) p.onDropWidget(Number(w), i);
           else if (dragBlock !== null) p.onMoveBlock(dragBlock, i);
+          else if (dragSec !== null) p.onPartToStory?.(dragSec, i);
           clear();
         }}
         onDragEnd={clear}
@@ -216,6 +226,7 @@ export function ListingLayers(p: Props) {
             onDrop={(e) => {
               const w = e.dataTransfer.getData("text/widget");
               if (w) p.onDropWidget(Number(w), p.items.length);
+              else if (dragSec !== null) p.onPartToStory?.(dragSec, p.items.length);
               clear();
             }}
           >
@@ -262,7 +273,7 @@ export function ListingLayers(p: Props) {
           <>This listing uses a <b>category</b> layout. Click a block to fill in its content. Change the layout in Categories.</>
         ) : (
           <>
-            <b>Drag</b> rows to reorder. In the preview, <b>hold a part</b> to make it jiggle, then drag it up or down.
+            <b>Drag</b> rows to reorder. Drag a page part, like Menu, into the story, or back out. In the preview, <b>hold a part</b> to make it jiggle, then drag it.
           </>
         )}
       </div>

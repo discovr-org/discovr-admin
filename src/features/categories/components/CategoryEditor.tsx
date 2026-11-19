@@ -21,7 +21,7 @@ import { hintRow, sheetHeader } from "@/features/listings/utils/listingSheet";
 import { moveBlock } from "@/features/listings/utils/storyBlocks";
 import styles from "@/features/listings/styles/ListingEditor.module.css";
 import { deleteCategory, fetchCategory, patchCategory } from "../utils/categoryApi";
-import { LAYOUT_HALF_OK, LAYOUT_LABEL, LAYOUT_WIDGETS, layoutBlockLabel, type Category, type LayoutBlock } from "../utils/layout";
+import { LAYOUT_HALF_OK, LAYOUT_LABEL, LAYOUT_WIDGETS, PART_BLOCK_IDS, layoutBlockLabel, type Category, type LayoutBlock } from "../utils/layout";
 import { LayoutBlockEditor } from "./LayoutBlockEditor";
 
 type Snap = { story: LayoutBlock[]; order: SectionState[]; fixed: { more: boolean; booking: boolean }; buttons: ActionButtonId[] | undefined };
@@ -178,6 +178,21 @@ export function CategoryEditor({ id }: { id: string }) {
     const at = target + (after ? 1 : 0);
     return from < at ? at - 1 : at;
   };
+  // Page parts move freely: into the story as a block, and back out onto a page row.
+  const partToStory = (sectionIndex: number, at: number) => {
+    const id = order[sectionIndex]?.id;
+    if (!id || !(PART_BLOCK_IDS as readonly string[]).includes(id) || story.some((b) => b.type === "part" && b.id === id)) return;
+    apply({ story: [...story.slice(0, at), { type: "part", id } as LayoutBlock, ...story.slice(at)] }, { kind: "block", index: at });
+  };
+  const partToSection = (blockIndex: number, target: number) => {
+    const b = story[blockIndex];
+    if (b?.type !== "part") return;
+    const from = order.findIndex((x) => x.id === b.id);
+    if (from < 0 || target < 0) return;
+    const next = order.slice();
+    next.splice(target, 0, ...next.splice(from, 1));
+    apply({ story: story.filter((_, j) => j !== blockIndex), order: next }, { kind: "part", id: b.id });
+  };
   const moveSection = (from: number, to: number) => {
     if (from === to || from < 0 || to < 0) return;
     const next = order.slice();
@@ -274,6 +289,8 @@ export function CategoryEditor({ id }: { id: string }) {
           fixed={fixed}
           venue={false}
           onMoveSection={moveSection}
+          onPartToStory={partToStory}
+          onPartToSection={partToSection}
           onToggleSection={toggleSection}
           onToggleFixed={(fid) => apply({ fixed: { [fid]: !fixed[fid] } })}
           onMoveBlock={(from, to) => {
@@ -492,13 +509,24 @@ export function CategoryEditor({ id }: { id: string }) {
               onArrange={setArranging}
               onAdd={() => setTab("widgets")}
               onMove={(from, to, after) => {
-                if (from.startsWith("block:")) {
+                const fromBlock = from.startsWith("block:");
+                const toBlock = to.startsWith("block:");
+                if (fromBlock && toBlock) {
                   const a = Number(from.slice(6));
                   const b = dropIndex(a, Number(to.slice(6)), after);
                   apply({ story: moveBlock(story as never, a, b) as unknown as LayoutBlock[] }, { kind: "block", index: b });
-                } else {
+                } else if (!fromBlock && !toBlock) {
                   const a = order.findIndex((x) => `part:${x.id}` === from);
                   moveSection(a, dropIndex(a, order.findIndex((x) => `part:${x.id}` === to), after));
+                } else if (!fromBlock) {
+                  // A page part dropped into the story.
+                  partToStory(order.findIndex((x) => `part:${x.id}` === from), Number(to.slice(6)) + (after ? 1 : 0));
+                } else {
+                  // A part placed in the story dropped back on a page row. Other blocks stay in the story.
+                  const a = order.findIndex((x) => `part:${x.id}` === to);
+                  const part = story[Number(from.slice(6))];
+                  const own = part?.type === "part" ? order.findIndex((x) => x.id === part.id) : -1;
+                  if (own >= 0 && a >= 0) partToSection(Number(from.slice(6)), dropIndex(own, a, after));
                 }
               }}
               onRemove={(pv) => {
