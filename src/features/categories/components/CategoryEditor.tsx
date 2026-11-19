@@ -14,6 +14,8 @@ import { LivePreview } from "@/features/listings/components/LivePreview";
 import { PaneHead } from "@/features/listings/components/PaneHead";
 import { BLOCK_ICON, PART_ICON } from "@/features/listings/utils/layerIcons";
 import { PART_META, readFixedShown, readSections, writeSections, type PartId, type SectionState } from "@/features/listings/utils/pageLayout";
+import { downloadCsv } from "@/features/listings/utils/csv";
+import { hintRow, sheetHeader } from "@/features/listings/utils/listingSheet";
 import { moveBlock } from "@/features/listings/utils/storyBlocks";
 import styles from "@/features/listings/styles/ListingEditor.module.css";
 import { deleteCategory, fetchCategory, patchCategory } from "../utils/categoryApi";
@@ -209,6 +211,25 @@ export function CategoryEditor({ id }: { id: string }) {
         <button type="button" className={styles.ibtn} aria-label="Redo" title="Redo (⇧⌘Z)" disabled={!future.length} onClick={redo}>
           <Ic name="redo" size={17} />
         </button>
+        <button
+          type="button"
+          className={styles.btn}
+          title="Download a sheet with the columns this layout needs"
+          onClick={() => {
+            const layout = { sections: writeSections(order, fixed), story };
+            downloadCsv(`${slug.trim() || "category"}-sheet.csv`, [sheetHeader(layout), hintRow(layout)]);
+          }}
+        >
+          <Ic name="file" size={15} />
+          Export sheet
+        </button>
+        <Link
+          href={`/listings/import?category=${id}`}
+          className={styles.btn}
+          onClick={(e) => dirty && !window.confirm("You have unsaved changes. Save the layout first so the import uses it. Leave anyway?") && e.preventDefault()}
+        >
+          Import listings
+        </Link>
         <button type="button" className={`${styles.btn} ${styles.btnDanger}`} onClick={onDelete}>
           <Ic name="trash" size={15} />
           Delete

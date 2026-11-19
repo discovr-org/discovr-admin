@@ -8,6 +8,8 @@ import { EmptyState } from "@/shared/components/EmptyState";
 import { Input } from "@/shared/components/Input";
 import { LayersIcon } from "@/shared/components/icons";
 import { useToast } from "@/shared/components/Toast";
+import { downloadCsv } from "@/features/listings/utils/csv";
+import { hintRow, sheetHeader } from "@/features/listings/utils/listingSheet";
 import { createCategory, deleteCategory, fetchCategories } from "../utils/categoryApi";
 import { TEMPLATES, type Category } from "../utils/layout";
 import styles from "../styles/CategoriesScreen.module.css";
@@ -100,6 +102,12 @@ export function CategoriesScreen() {
               <div className={styles.actions}>
                 <Button href={`/categories/${c.id}`} variant="secondary">
                   Edit layout
+                </Button>
+                <Button variant="secondary" onClick={() => downloadCsv(`${c.slug}-sheet.csv`, [sheetHeader(c.layout), hintRow(c.layout)])}>
+                  Export sheet
+                </Button>
+                <Button href={`/listings/import?category=${c.id}`} variant="secondary">
+                  Import listings
                 </Button>
                 <button type="button" className={styles.danger} disabled={(c.listingCount ?? 0) > 0} title={c.listingCount ? "Move its listings first" : "Delete"} onClick={() => onDelete(c)}>
                   Delete
