@@ -604,6 +604,7 @@ export function EditListingScreen({ id }: Props) {
     e.preventDefault();
     if (!form) return;
     if (!form.title.trim()) {
+      select({ kind: "part", id: "title" }); // open the field that is missing
       toast.error("Add a title.");
       return;
     }
@@ -1033,7 +1034,7 @@ export function EditListingScreen({ id }: Props) {
               </div>
             ) : null}
 
-            <form id="listing-form" className={`${styles2.paneInner} ${styles.editForm}`} onSubmit={onSave} hidden={tab !== "edit" || formKeys.length === 0}>
+            <form id="listing-form" noValidate className={`${styles2.paneInner} ${styles.editForm}`} onSubmit={onSave} hidden={tab !== "edit" || formKeys.length === 0}>
         <div id="sec-photos" className={styles.group} hidden={!showSec("photos")}>
         <ListingPhotos
           title={form.title.trim()}
