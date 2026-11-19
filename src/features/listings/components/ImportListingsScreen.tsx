@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { fetchCategories } from "@/features/categories/utils/categoryApi";
 import type { Category } from "@/features/categories/utils/layout";
@@ -258,7 +257,7 @@ export function ImportListingsScreen({ categoryId: fixedCategoryId }: { category
                 Row {r.n}:{" "}
                 {r.id ? (
                   <>
-                    <Link href={`/listings/${r.id}`}>{r.title}</Link>
+                    <a href={`/listings/${r.id}`} target="_blank" rel="noopener noreferrer" aria-label={`${r.title} (opens in a new tab)`}>{r.title} ↗</a>
                     {r.warning ? <span className={styles.issue}> — {r.warning}</span> : null}
                   </>
                 ) : (
