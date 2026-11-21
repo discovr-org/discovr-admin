@@ -62,7 +62,7 @@ export function HomeFeedScreen() {
 
   return (
     <div className={styles.screen}>
-      <p className={`t-body-sm ${styles.hint}`}>Sections show top to bottom. A listing shows once: the first section that has it keeps it. A section with one listing shows it full width.</p>
+      <p className={`t-body-sm ${styles.hint}`}>Sections show top to bottom. A listing shows once: the first section that has it keeps it. A section with one listing shows it full width. Categories add rows by themselves: a live listing that no section here places joins the row of its category (a section named like the category), or gets a row of its own below these.</p>
 
       {sections.map((s, i) => (
         <section key={s.id} className={styles.card}>
