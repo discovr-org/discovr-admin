@@ -1033,8 +1033,8 @@ export function EditListingScreen({ id }: Props) {
           photos={media.photos}
           menuPages={media.menuPages}
           files={files}
-          onChange={(next) => {
-            setMedia((m) => ({ ...m, ...next }));
+          onChange={(update) => {
+            setMedia((m) => ({ ...m, ...update(m) }));
             touch();
           }}
         />
