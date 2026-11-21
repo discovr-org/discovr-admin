@@ -7,7 +7,6 @@ import { EmptyState } from "@/shared/components/EmptyState";
 import { LayersIcon } from "@/shared/components/icons";
 import { Input } from "@/shared/components/Input";
 import { useToast } from "@/shared/components/Toast";
-import { useCatalog } from "@/shared/utils/useCatalog";
 import { Ic } from "@/features/listings/components/EditorIcon";
 import { ListingLayers, type LayerItem, type Sel } from "@/features/listings/components/ListingLayers";
 import { LivePreview } from "@/features/listings/components/LivePreview";
@@ -24,15 +23,12 @@ import { deleteCategory, fetchCategory, patchCategory } from "../utils/categoryA
 import { LAYOUT_HALF_OK, LAYOUT_LABEL, LAYOUT_WIDGETS, PART_BLOCK_IDS, layoutBlockLabel, type Category, type LayoutBlock } from "../utils/layout";
 import { LayoutBlockEditor } from "./LayoutBlockEditor";
 
-const SAMPLE = "__sample";
-
 type Snap = { story: LayoutBlock[]; order: SectionState[]; fixed: { more: boolean; booking: boolean }; buttons: ActionButtonId[] | undefined };
 
 /** Edit a category's layout: the order of the page, its story blocks, and which listing field each block shows. */
 export function CategoryEditor({ id }: { id: string }) {
   const toast = useToast();
   const router = useRouter();
-  const { experiences } = useCatalog();
   const [category, setCategory] = useState<Category | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -48,11 +44,6 @@ export function CategoryEditor({ id }: { id: string }) {
   const [arranging, setArranging] = useState(false);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [scrollTo, setScrollTo] = useState<{ id: string; n: number } | null>(null);
-  const [pickedSample, setSampleId] = useState("");
-  // What the preview draws the layout on: the one picked, else a listing in this category, else a made-up sample with every field filled.
-  const inCategory = (experiences ?? []).filter((x) => x.categoryId === id);
-  const elsewhere = (experiences ?? []).filter((x) => x.categoryId !== id);
-  const sampleId = pickedSample || (experiences ? (inCategory[0]?.id ?? SAMPLE) : "");
   const [past, setPast] = useState<Snap[]>([]);
   const [future, setFuture] = useState<Snap[]>([]);
   const typing = useRef(0);
@@ -450,45 +441,16 @@ export function CategoryEditor({ id }: { id: string }) {
           <div className={styles.stagebar}>
             <div>
               <div className={styles.t}>Mobile preview</div>
-              <div className={styles.s}>
-                <select
-                  className={styles.crumbSelect}
-                  style={{ padding: "3px 26px 3px 8px", fontSize: 12 }}
-                  aria-label="Preview with listing"
-                  value={sampleId}
-                  onChange={(e) => setSampleId(e.target.value)}
-                >
-                  <option value={SAMPLE}>Preview with a sample listing (every block filled)</option>
-                  {inCategory.length ? (
-                    <optgroup label="Listings in this category">
-                      {inCategory.map((x) => (
-                        <option key={x.id} value={x.id}>
-                          Preview with {x.title}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ) : null}
-                  {elsewhere.length ? (
-                    <optgroup label="Listings in other categories">
-                      {elsewhere.map((x) => (
-                        <option key={x.id} value={x.id}>
-                          Preview with {x.title}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ) : null}
-                </select>
-              </div>
+              <div className={styles.s}>Sample content, so you can judge the layout</div>
             </div>
             <button type="button" className={`${styles.btn} ${styles.btnSm} ${arranging ? styles.btnActive : ""}`} aria-pressed={arranging} onClick={() => setArranging(!arranging)}>
               <Ic name={arranging ? "check" : "move"} size={14} />
               {arranging ? "Done" : "Arrange"}
             </button>
           </div>
-          {sampleId ? (
-            <LivePreview
-              id={sampleId === SAMPLE ? id : sampleId}
-              sampleOfCategory={sampleId === SAMPLE ? id : undefined}
+          <LivePreview
+              id={id}
+              sampleOfCategory={id}
               draft={{ categoryId: id, categoryLayout: { sections: writeSections(order, fixed), story, actionButtons: buttons } } as never}
               mediaKey=""
               selected={pvId(sel)}
@@ -525,11 +487,6 @@ export function CategoryEditor({ id }: { id: string }) {
                 else toggleSection(pv.slice(5) as SectionState["id"]);
               }}
             />
-          ) : (
-            <p className={styles.note} style={{ padding: "var(--space-5)" }}>
-              Add a listing first, to preview this layout on it.
-            </p>
-          )}
         </section>
       </div>
     </div>
