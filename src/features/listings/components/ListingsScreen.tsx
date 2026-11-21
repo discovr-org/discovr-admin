@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
 import { EmptyState } from "@/shared/components/EmptyState";
@@ -18,12 +18,16 @@ import {
   useCatalog,
 } from "@/shared/utils/useCatalog";
 import { useToast } from "@/shared/components/Toast";
+import { fetchCategories } from "@/features/categories/utils/categoryApi";
+import type { Category } from "@/features/categories/utils/layout";
 import { ExportListingsButton } from "./ExportListingsButton";
 import styles from "../styles/ListingsScreen.module.css";
 
 type StatusFilter = "all" | "published" | "draft" | "archived";
 type HostFilter = "all" | "active" | "inactive";
 type PriceFilter = "all" | "priced" | "ask";
+/** "all", "none" (listings with no category), or a category id. */
+type CategoryFilter = string;
 
 function statusTone(status: CatalogExperienceSummary["status"]) {
   if (status === "published") return "positive" as const;
@@ -43,7 +47,20 @@ export function ListingsScreen() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [hostFilter, setHostFilter] = useState<HostFilter>("all");
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [categories, setCategories] = useState<Category[]>([]);
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    // Before the categories migration the list can't load; the screen then works without the filter's choices.
+    fetchCategories().then(setCategories).catch(() => setCategories([]));
+  }, []);
+  const categoryName = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
+  const categoryCount = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of rows ?? []) if (r.categoryId) counts.set(r.categoryId, (counts.get(r.categoryId) ?? 0) + 1);
+    return counts;
+  }, [rows]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -53,6 +70,8 @@ export function ListingsScreen() {
       if (hostFilter === "inactive" && row.hostActive) return false;
       if (priceFilter === "priced" && row.priceFromInr <= 0) return false;
       if (priceFilter === "ask" && row.priceFromInr > 0) return false;
+      if (categoryFilter === "none" && row.categoryId) return false;
+      if (categoryFilter !== "all" && categoryFilter !== "none" && row.categoryId !== categoryFilter) return false;
       if (!q) return true;
       const hay = [
         row.title,
@@ -60,12 +79,13 @@ export function ListingsScreen() {
         row.verdict,
         row.hostBusinessName,
         row.placeNeighborhood,
+        row.categoryId ? categoryName.get(row.categoryId) ?? "" : "",
       ]
         .join(" ")
         .toLowerCase();
       return hay.includes(q);
     });
-  }, [rows, statusFilter, hostFilter, priceFilter, query]);
+  }, [rows, statusFilter, hostFilter, priceFilter, categoryFilter, categoryName, query]);
 
   // Change the screen first; the API call follows. If it fails, undo and say why.
   function onDelete(row: CatalogExperienceSummary) {
@@ -194,6 +214,18 @@ export function ListingsScreen() {
             <option value="all">All</option>
             <option value="priced">Has price</option>
             <option value="ask">No price</option>
+          </select>
+        </label>
+        <label className={styles.filterField}>
+          <span className={styles.filterLabel}>Category</span>
+          <select className={styles.filterSelect} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+            <option value="all">All categories</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({categoryCount.get(c.id) ?? 0})
+              </option>
+            ))}
+            <option value="none">No category</option>
           </select>
         </label>
       </div>
