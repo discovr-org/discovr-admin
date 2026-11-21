@@ -11,6 +11,8 @@ export type CatalogExperienceSummary = {
   hostId: string | null;
   hostBusinessName: string;
   hostActive: boolean;
+  /** The category (page layout) the listing uses, if any. */
+  categoryId?: string | null;
   placeNeighborhood: string;
   hasPhoto: boolean;
 };

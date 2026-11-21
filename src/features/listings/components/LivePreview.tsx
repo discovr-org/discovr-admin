@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ExperienceAdminPatch } from "@/shared/utils/catalogApi";
 import { Ic } from "./EditorIcon";
 import { GUEST_URL } from "@/shared/utils/constants";
-import { previewExperienceAdmin } from "../utils/previewApi";
+import { previewCategorySampleAdmin, previewExperienceAdmin } from "../utils/previewApi";
 import styles from "../styles/ListingEditor.module.css";
 
 export type PreviewEvents = {
@@ -18,6 +18,8 @@ export type PreviewEvents = {
 
 type Props = PreviewEvents & {
   id: string;
+  /** Draw this category on the made-up sample listing instead of listing `id`. */
+  sampleOfCategory?: string;
   /** The form as it is right now, unsaved changes included. */
   draft: ExperienceAdminPatch;
   /** Changes when photos or menu pages change. They save on their own, so the draft alone would not notice. */
@@ -33,7 +35,7 @@ const W = 414;
 const H = 868;
 
 /** The real guest page in a phone frame, drawn from the draft. Every local change shows here. */
-export function LivePreview({ id, draft, mediaKey, selected, hover, arranging, scrollTo, ...events }: Props) {
+export function LivePreview({ id, sampleOfCategory, draft, mediaKey, selected, hover, arranging, scrollTo, ...events }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   const body = useRef<HTMLDivElement>(null);
   const latest = useRef<unknown>(null);
@@ -90,7 +92,7 @@ export function LivePreview({ id, draft, mediaKey, selected, hover, arranging, s
     const ctl = new AbortController();
     const t = window.setTimeout(() => {
       setStatus((s) => (s === "loading" ? s : "updating"));
-      previewExperienceAdmin(id, draftRef.current, ctl.signal)
+      (sampleOfCategory ? previewCategorySampleAdmin(sampleOfCategory, (draftRef.current as { categoryLayout?: unknown }).categoryLayout, ctl.signal) : previewExperienceAdmin(id, draftRef.current, ctl.signal))
         .then((experience) => {
           latest.current = experience;
           setStatus("ok");
@@ -105,7 +107,7 @@ export function LivePreview({ id, draft, mediaKey, selected, hover, arranging, s
       ctl.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- post reads refs only
-  }, [id, draftKey]);
+  }, [id, sampleOfCategory, draftKey]);
 
   useEffect(postState); // selection, hover and arrange mode follow the editor
   useEffect(() => {

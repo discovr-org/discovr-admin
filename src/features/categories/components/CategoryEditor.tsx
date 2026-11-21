@@ -24,6 +24,8 @@ import { deleteCategory, fetchCategory, patchCategory } from "../utils/categoryA
 import { LAYOUT_HALF_OK, LAYOUT_LABEL, LAYOUT_WIDGETS, PART_BLOCK_IDS, layoutBlockLabel, type Category, type LayoutBlock } from "../utils/layout";
 import { LayoutBlockEditor } from "./LayoutBlockEditor";
 
+const SAMPLE = "__sample";
+
 type Snap = { story: LayoutBlock[]; order: SectionState[]; fixed: { more: boolean; booking: boolean }; buttons: ActionButtonId[] | undefined };
 
 /** Edit a category's layout: the order of the page, its story blocks, and which listing field each block shows. */
@@ -47,8 +49,10 @@ export function CategoryEditor({ id }: { id: string }) {
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [scrollTo, setScrollTo] = useState<{ id: string; n: number } | null>(null);
   const [pickedSample, setSampleId] = useState("");
-  // The listing the preview shows: the one picked, else the first.
-  const sampleId = pickedSample || experiences?.[0]?.id || "";
+  // What the preview draws the layout on: the one picked, else a listing in this category, else a made-up sample with every field filled.
+  const inCategory = (experiences ?? []).filter((x) => x.categoryId === id);
+  const elsewhere = (experiences ?? []).filter((x) => x.categoryId !== id);
+  const sampleId = pickedSample || (experiences ? (inCategory[0]?.id ?? SAMPLE) : "");
   const [past, setPast] = useState<Snap[]>([]);
   const [future, setFuture] = useState<Snap[]>([]);
   const typing = useRef(0);
@@ -454,11 +458,25 @@ export function CategoryEditor({ id }: { id: string }) {
                   value={sampleId}
                   onChange={(e) => setSampleId(e.target.value)}
                 >
-                  {(experiences ?? []).map((x) => (
-                    <option key={x.id} value={x.id}>
-                      Preview with {x.title}
-                    </option>
-                  ))}
+                  <option value={SAMPLE}>Preview with a sample listing (every block filled)</option>
+                  {inCategory.length ? (
+                    <optgroup label="Listings in this category">
+                      {inCategory.map((x) => (
+                        <option key={x.id} value={x.id}>
+                          Preview with {x.title}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                  {elsewhere.length ? (
+                    <optgroup label="Listings in other categories">
+                      {elsewhere.map((x) => (
+                        <option key={x.id} value={x.id}>
+                          Preview with {x.title}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
                 </select>
               </div>
             </div>
@@ -469,7 +487,8 @@ export function CategoryEditor({ id }: { id: string }) {
           </div>
           {sampleId ? (
             <LivePreview
-              id={sampleId}
+              id={sampleId === SAMPLE ? id : sampleId}
+              sampleOfCategory={sampleId === SAMPLE ? id : undefined}
               draft={{ categoryId: id, categoryLayout: { sections: writeSections(order, fixed), story, actionButtons: buttons } } as never}
               mediaKey=""
               selected={pvId(sel)}
