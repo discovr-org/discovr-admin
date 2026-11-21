@@ -55,7 +55,6 @@ export function WidgetLibrary({ blocks, order, noStory, onAdd, onShowSection }: 
                 <div className={styles.wmeta}>
                   <span className={styles.wname}>{w.name}</span>
                   {used.has(w.block.type) ? <span className={`${styles.chip} ${styles.chipOn}`}>On page</span> : null}
-                  <span className={styles.chip}>{w.block.size === "half" ? "Half" : "Full"}</span>
                 </div>
               </button>
             ))}

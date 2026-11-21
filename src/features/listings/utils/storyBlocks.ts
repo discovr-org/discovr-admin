@@ -1,6 +1,6 @@
 /** Same shapes the guest app renders in the About story (`discovr-frontend/src/types/experience.ts`). */
-/** `show: false` hides the block on the guest page. Two `half` blocks in a row sit side by side. */
-export type BlockFlags = { show?: boolean; size?: "full" | "half" };
+/** `show: false` hides the block on the guest page. */
+export type BlockFlags = { show?: boolean };
 
 export type StoryBlock = BlockFlags &
   (
@@ -34,9 +34,6 @@ export const BLOCK_LABEL: Record<BlockType, string> = {
   stats: "Stat tiles",
   packages: "Packages & prices",
 };
-
-/** Blocks that can sit half width next to another half block. */
-export const HALF_OK: BlockType[] = ["callout", "quote", "photo", "checklist", "stats", "text"];
 
 /** Blocks an editor can add. Click one to put it in the story. */
 export const WIDGETS: Array<{ name: string; block: StoryBlock }> = [
@@ -78,7 +75,7 @@ export const WIDGETS: Array<{ name: string; block: StoryBlock }> = [
   },
   {
     name: "Good to know",
-    block: { type: "callout", tone: "tip", title: "Good to know", paragraphs: ["Lockers and showers on site."], size: "half" },
+    block: { type: "callout", tone: "tip", title: "Good to know", paragraphs: ["Lockers and showers on site."] },
   },
   { name: "Divider", block: { type: "line" } },
 ];

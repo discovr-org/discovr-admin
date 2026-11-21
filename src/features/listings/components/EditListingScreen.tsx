@@ -28,7 +28,7 @@ import { useToast } from "@/shared/components/Toast";
 import styles from "../styles/EditListingScreen.module.css";
 import { ListingPhotos } from "./ListingPhotos";
 import { BLOCK_ICON, PART_ICON, layoutBlockIcon } from "../utils/layerIcons";
-import { BLOCK_LABEL, HALF_OK, blockLabel, WIDGETS, cleanBlocks, moveBlock, parseBlocks, seedBlocks, type StoryBlock } from "../utils/storyBlocks";
+import { BLOCK_LABEL, blockLabel, WIDGETS, cleanBlocks, moveBlock, parseBlocks, seedBlocks, type StoryBlock } from "../utils/storyBlocks";
 import { FORMS, PART_META, readFixedShown, readSections, writeSections, type PartId, type SectionState } from "../utils/pageLayout";
 import styles2 from "../styles/ListingEditor.module.css";
 import { BlockEditor } from "./BlockEditor";
@@ -751,8 +751,8 @@ export function EditListingScreen({ id }: Props) {
   const shownOrder = locked ? readSections(category?.layout.sections) : order;
   const shownFixed = locked ? { more: readFixedShown(category?.layout.sections, "more"), booking: readFixedShown(category?.layout.sections, "booking") } : fixed;
   const layerItems: LayerItem[] = locked
-    ? layoutStory.map((b) => ({ label: layoutBlockLabel(b), type: LAYOUT_LABEL[b.type], icon: layoutBlockIcon(b), half: b.size === "half", hidden: b.show === false, partId: b.type === "part" ? b.id : undefined }))
-    : blocks.map((b) => ({ label: blockLabel(b), type: BLOCK_LABEL[b.type] ?? b.type, icon: BLOCK_ICON[b.type] ?? "type", half: b.size === "half", hidden: b.show === false }));
+    ? layoutStory.map((b) => ({ label: layoutBlockLabel(b), type: LAYOUT_LABEL[b.type], icon: layoutBlockIcon(b), hidden: b.show === false, partId: b.type === "part" ? b.id : undefined }))
+    : blocks.map((b) => ({ label: blockLabel(b), type: BLOCK_LABEL[b.type] ?? b.type, icon: BLOCK_ICON[b.type] ?? "type", hidden: b.show === false }));
   const layoutBlock = locked && sel?.kind === "block" ? layoutStory[sel.index] : undefined;
   const selPart = sel?.kind === "part" ? sel.id : null;
   // Which editor cards the Edit tab opens: the part's, or the fields a layout block reads.
@@ -958,30 +958,6 @@ export function EditListingScreen({ id }: Props) {
             {tab === "edit" && current && sel?.kind === "block" ? (
               <div className={styles2.paneInner}>
                 <PaneHead icon={BLOCK_ICON[current.type] ?? "type"} title={blockLabel(current)} sub={BLOCK_LABEL[current.type] ?? current.type} />
-                {HALF_OK.includes(current.type) ? (
-                  <div className={styles2.isec}>
-                    <h4 className={styles2.isecTitle}>Widget size</h4>
-                    <div className={styles2.seg} role="group" aria-label="Width">
-                      <button type="button" className={current.size === "half" ? styles2.segOn : ""} aria-pressed={current.size === "half"} onClick={() => patchBlock(sel.index, { ...current, size: "half" })}>
-                        <span className={styles2.szic}>
-                          <i className="f" />
-                          <i />
-                        </span>
-                        Half width
-                      </button>
-                      <button type="button" className={current.size !== "half" ? styles2.segOn : ""} aria-pressed={current.size !== "half"} onClick={() => patchBlock(sel.index, { ...current, size: undefined })}>
-                        <span className={styles2.szic}>
-                          <i className="f" />
-                          <i className="f" />
-                        </span>
-                        Full width
-                      </button>
-                    </div>
-                    <p className={styles2.note} style={{ marginTop: 10 }}>
-                      Two half-width widgets next to each other sit side by side. A lone one stays full width.
-                    </p>
-                  </div>
-                ) : null}
                 <div className={styles2.isec}>
                   <h4 className={styles2.isecTitle}>Content</h4>
                   <div className={styles2.isecBody}>

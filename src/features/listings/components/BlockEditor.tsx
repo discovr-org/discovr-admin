@@ -64,7 +64,7 @@ export function BlockEditor({ block, onChange }: Props) {
       return (
         <>
           <Input label="Heading" value={block.text} onChange={(e) => onChange({ ...block, text: e.target.value })} />
-          <Choice label="Size" value={block.level} options={[["section", "Big"], ["small", "Small"]]} onChange={(level) => onChange({ ...block, level })} />
+          <Choice label="Heading level" value={block.level} options={[["section", "Main heading"], ["small", "Sub-heading"]]} onChange={(level) => onChange({ ...block, level })} />
         </>
       );
     case "line":

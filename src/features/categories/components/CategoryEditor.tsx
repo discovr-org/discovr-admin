@@ -20,7 +20,7 @@ import { hintRow, sheetHeader } from "@/features/listings/utils/listingSheet";
 import { moveBlock } from "@/features/listings/utils/storyBlocks";
 import styles from "@/features/listings/styles/ListingEditor.module.css";
 import { deleteCategory, fetchCategory, patchCategory } from "../utils/categoryApi";
-import { LAYOUT_HALF_OK, LAYOUT_LABEL, LAYOUT_WIDGETS, PART_BLOCK_IDS, layoutBlockLabel, type Category, type LayoutBlock } from "../utils/layout";
+import { LAYOUT_LABEL, LAYOUT_WIDGETS, PART_BLOCK_IDS, layoutBlockLabel, type Category, type LayoutBlock } from "../utils/layout";
 import { LayoutBlockEditor } from "./LayoutBlockEditor";
 
 type Snap = { story: LayoutBlock[]; order: SectionState[]; fixed: { more: boolean; booking: boolean }; buttons: ActionButtonId[] | undefined };
@@ -161,7 +161,7 @@ export function CategoryEditor({ id }: { id: string }) {
 
   const selPart = sel?.kind === "part" ? sel.id : null;
   const block = sel?.kind === "block" ? story[sel.index] : undefined;
-  const items: LayerItem[] = story.map((b) => ({ label: layoutBlockLabel(b), type: LAYOUT_LABEL[b.type], icon: layoutBlockIcon(b), half: b.size === "half", hidden: b.show === false, partId: b.type === "part" ? b.id : undefined }));
+  const items: LayerItem[] = story.map((b) => ({ label: layoutBlockLabel(b), type: LAYOUT_LABEL[b.type], icon: layoutBlockIcon(b), hidden: b.show === false, partId: b.type === "part" ? b.id : undefined }));
   const pvId = (s: Sel): string | null => (s?.kind === "block" ? `block:${s.index}` : s?.kind === "part" && s.id !== "faqs" && s.id !== "tags" ? `part:${s.id}` : null);
   const selectFromLayers = (next: Sel) => {
     select(next);
@@ -211,7 +211,7 @@ export function CategoryEditor({ id }: { id: string }) {
     >
       <div className={styles.wmeta}>
         <span className={styles.wname}>{w.name}</span>
-        <span className={styles.chip}>{w.block.type === "part" ? "Part" : w.block.size === "half" ? "Half" : "Full"}</span>
+        {w.block.type === "part" ? <span className={styles.chip}>Part</span> : null}
       </div>
     </button>
   );
@@ -357,27 +357,6 @@ export function CategoryEditor({ id }: { id: string }) {
               <div className={styles.paneInner}>
                 <PaneHead icon={layoutBlockIcon(block)} title={layoutBlockLabel(block)} sub={LAYOUT_LABEL[block.type]} />
                 {block.type === "part" && block.id === "actions" ? <ActionButtonsField value={buttons} onChange={(v) => apply({ buttons: v })} /> : null}
-                {LAYOUT_HALF_OK.includes(block.type) ? (
-                  <div className={styles.isec}>
-                    <h4 className={styles.isecTitle}>Widget size</h4>
-                    <div className={styles.seg} role="group" aria-label="Width">
-                      <button type="button" className={block.size === "half" ? styles.segOn : ""} aria-pressed={block.size === "half"} onClick={() => patchBlock(sel.index, { ...block, size: "half" })}>
-                        <span className={styles.szic}>
-                          <i className="f" />
-                          <i />
-                        </span>
-                        Half width
-                      </button>
-                      <button type="button" className={block.size !== "half" ? styles.segOn : ""} aria-pressed={block.size !== "half"} onClick={() => patchBlock(sel.index, { ...block, size: undefined })}>
-                        <span className={styles.szic}>
-                          <i className="f" />
-                          <i className="f" />
-                        </span>
-                        Full width
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
                 <div className={styles.isec}>
                   <h4 className={styles.isecTitle}>Content</h4>
                   <div className={styles.isecBody}>

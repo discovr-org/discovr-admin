@@ -7,7 +7,7 @@ import styles from "../styles/ListingEditor.module.css";
 import { Ic, type IconName } from "./EditorIcon";
 
 /** One story row in Layers. Listings and categories both map their blocks to this. */
-export type LayerItem = { label: string; type: string; icon: IconName; half?: boolean; hidden?: boolean; /** Set when the row is a page part placed in the story. */ partId?: string };
+export type LayerItem = { label: string; type: string; icon: IconName; hidden?: boolean; /** Set when the row is a page part placed in the story. */ partId?: string };
 
 export type Sel = { kind: "part"; id: PartId } | { kind: "block"; index: number } | null;
 
@@ -170,7 +170,6 @@ export function ListingLayers(p: Props) {
             <div className={styles.lname}>{b.label}</div>
             <div className={styles.ltype}>
               {b.type}
-              {b.half ? <span className={styles.chip}>½ width</span> : null}
               {hidden ? <span className={styles.chip}>hidden</span> : null}
             </div>
           </span>

@@ -115,7 +115,7 @@ export function PreviewBlock({ block }: { block: StoryBlock }) {
 export function WidgetPreview({ block }: { block: StoryBlock }) {
   return (
     <div className={styles.wprev} aria-hidden="true">
-      <div className={`${styles.wsz} ${block.size === "half" ? styles.wszHalf : ""}`}>
+      <div className={styles.wsz}>
         <div>
           <PreviewBlock block={block} />
         </div>

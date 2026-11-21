@@ -46,10 +46,10 @@ export function LayoutBlockEditor({ block, onChange }: Props) {
             <SourceSelect label="Heading shows" kind="text" value={block.source} fixed onChange={(source) => onChange({ ...block, source })} />
             {block.source ? null : <Input label="Heading text" value={block.text ?? ""} onChange={(e) => onChange({ ...block, text: e.target.value })} />}
             <label className={styles.area}>
-              <span className={styles.areaLabel}>Size</span>
+              <span className={styles.areaLabel}>Heading level</span>
               <select className={styles.select} value={block.level} onChange={(e) => onChange({ ...block, level: e.target.value as "section" | "small" })}>
-                <option value="section">Big</option>
-                <option value="small">Small</option>
+                <option value="section">Main heading</option>
+                <option value="small">Sub-heading</option>
               </select>
             </label>
           </>

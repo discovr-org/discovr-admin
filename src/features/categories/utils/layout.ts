@@ -9,7 +9,7 @@ import type { ActionButtonId } from "@/shared/utils/catalogApi";
 export const PART_BLOCK_IDS = ["title", "info", "verdict", "actions", "menu", "policy", "host", "reviews"] as const;
 export type PartBlockId = (typeof PART_BLOCK_IDS)[number];
 
-export type LayoutBlock = { size?: "full" | "half"; show?: boolean; when?: string } & (
+export type LayoutBlock = { show?: boolean; when?: string } & (
   | { type: "heading"; level: "section" | "small"; text?: string; source?: string }
   | { type: "line" }
   | { type: "part"; id: PartBlockId }
@@ -77,9 +77,6 @@ export const LAYOUT_LABEL: Record<LayoutBlockType, string> = {
   packages: "Packages & prices",
   photo: "Photo",
 };
-
-/** Blocks that can sit half width next to another half block. */
-export const LAYOUT_HALF_OK: LayoutBlockType[] = ["callout", "quote", "photo", "checklist", "stats", "text"];
 
 /** What a block is called in Layers: its own title, else the field it fills. */
 export function layoutBlockLabel(b: LayoutBlock): string {

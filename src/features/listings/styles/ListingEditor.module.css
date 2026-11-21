@@ -670,10 +670,6 @@
   width: calc(358px * 0.54);
 }
 
-.wszHalf {
-  width: calc(173px * 0.8);
-}
-
 .wsz > div {
   position: absolute;
   top: 0;
@@ -681,11 +677,6 @@
   width: 358px;
   transform: scale(0.54);
   transform-origin: 0 0;
-}
-
-.wszHalf > div {
-  width: 173px;
-  transform: scale(0.8);
 }
 
 .wmeta {
