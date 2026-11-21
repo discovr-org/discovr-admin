@@ -150,22 +150,6 @@ export function LayoutBlockEditor({ block, onChange }: Props) {
   return (
     <>
       {body}
-      <label className={styles.area}>
-        <span className={styles.areaLabel}>Space above</span>
-        <select className={styles.select} value={block.space ?? ""} onChange={(e) => onChange({ ...block, space: (e.target.value || undefined) as LayoutBlock["space"] })}>
-          <option value="">Normal</option>
-          <option value="none">None (stick to the block above)</option>
-          <option value="large">Large</option>
-        </select>
-      </label>
-      <label className={styles.area}>
-        <span className={styles.areaLabel}>Hide on</span>
-        <select className={styles.select} value={block.hide ?? ""} onChange={(e) => onChange({ ...block, hide: (e.target.value || undefined) as LayoutBlock["hide"] })}>
-          <option value="">Nowhere (show everywhere)</option>
-          <option value="mobile">Phones</option>
-          <option value="desktop">Desktop</option>
-        </select>
-      </label>
       {block.type === "line" ? null : (
         <label className={styles.area}>
           <span className={styles.areaLabel}>Show this block</span>

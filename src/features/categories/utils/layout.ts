@@ -9,7 +9,7 @@ import type { ActionButtonId } from "@/shared/utils/catalogApi";
 export const PART_BLOCK_IDS = ["title", "info", "verdict", "actions", "menu", "policy", "host", "reviews"] as const;
 export type PartBlockId = (typeof PART_BLOCK_IDS)[number];
 
-export type LayoutBlock = { size?: "full" | "half"; show?: boolean; when?: string; space?: "none" | "large"; hide?: "mobile" | "desktop" } & (
+export type LayoutBlock = { size?: "full" | "half"; show?: boolean; when?: string } & (
   | { type: "heading"; level: "section" | "small"; text?: string; source?: string }
   | { type: "line" }
   | { type: "part"; id: PartBlockId }
