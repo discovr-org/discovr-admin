@@ -10,3 +10,7 @@ export const createCategory = (input: { name: string; slug?: string; layout: Cat
 export const patchCategory = (id: string, input: Partial<{ name: string; slug: string; layout: CategoryLayout }>) =>
   requestJson<Category>(`${base}/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
 export const deleteCategory = (id: string) => requestJson<{ ok: true }>(`${base}/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+/** Set several weights at once (a drag renumbers more than one). Returns every category as it is now. */
+export const saveCategoryWeights = (weights: Array<{ id: string; weight: number }>) =>
+  requestJson<{ categories: Category[] }>(`${base}/weights`, { method: "PUT", body: JSON.stringify({ weights }) }).then((r) => r.categories);

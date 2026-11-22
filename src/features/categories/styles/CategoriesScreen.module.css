@@ -112,3 +112,65 @@
   opacity: var(--opacity-disabled);
   cursor: default;
 }
+
+/* Reordering: a grip to drag by, arrows for the keyboard, and the weight. */
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.grip {
+  color: var(--ink-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: grab;
+  user-select: none;
+}
+
+.item.dragging {
+  opacity: 0.5;
+}
+
+.item.over {
+  border-color: var(--ink-primary);
+}
+
+.order {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.arrow {
+  min-width: var(--size-tap-min);
+  min-height: var(--size-tap-min);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.arrow:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: default;
+}
+
+.arrow:focus-visible,
+.weightInput:focus-visible {
+  outline: var(--border-focus) solid var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.weightInput {
+  width: 88px;
+  min-height: var(--size-tap-min);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--ink-primary);
+  font: inherit;
+  text-align: right;
+}

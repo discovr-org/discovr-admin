@@ -28,7 +28,7 @@ export type LayoutBlock = { show?: boolean; when?: string } & (
 export type LayoutBlockType = LayoutBlock["type"];
 export type CategoryLayout = { sections?: Array<{ id: string; show?: boolean }>; story?: LayoutBlock[]; actionButtons?: ActionButtonId[] };
 
-export type Category = { id: string; slug: string; name: string; layout: CategoryLayout; listingCount?: number };
+export type Category = { id: string; slug: string; name: string; layout: CategoryLayout; /** Order of its row on the guest home page, 1 to 1000. Higher = higher up. */ weight: number; listingCount?: number };
 
 export type SourceKind = "text" | "lines" | "faqs" | "steps" | "packages" | "photo";
 
