@@ -1,4 +1,15 @@
 import { apiBaseUrl } from "@/shared/utils/apiBase";
+import { readAdminToken, signOutAdmin } from "@/shared/utils/adminToken";
+
+/** Every admin call carries the admin token. A 401 sends the person back to the login screen. */
+function authHeader(): Record<string, string> {
+  const token = readAdminToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function signedOutOn401(res: Response) {
+  if (res.status === 401) signOutAdmin();
+}
 
 export type CatalogExperienceSummary = {
   id: string;
@@ -217,10 +228,12 @@ export async function requestJson<T>(
     headers: {
       Accept: "application/json",
       ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...authHeader(),
       ...init?.headers,
     },
     cache: "no-store",
   });
+  signedOutOn401(res);
   if (!res.ok) await parseError(path, res);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -230,9 +243,10 @@ async function requestFormData<T>(path: string, form: FormData): Promise<T> {
   const res = await fetch(`${apiBaseUrl()}${path}`, {
     method: "POST",
     body: form,
-    headers: { Accept: "application/json" },
+    headers: { Accept: "application/json", ...authHeader() },
     cache: "no-store",
   });
+  signedOutOn401(res);
   if (!res.ok) await parseError(path, res);
   return (await res.json()) as T;
 }
